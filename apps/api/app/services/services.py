@@ -132,6 +132,11 @@ class agent:
         return out
 
     @staticmethod
+    def learn(user_id: int = 1) -> dict:
+        notes = _memory.learn_from_performance(user_id)
+        return {"learned": notes}
+
+    @staticmethod
     def memories(user_id: int = 1, limit: int = 50) -> list[dict]:
         return _memory.recall(user_id, limit=limit)
 

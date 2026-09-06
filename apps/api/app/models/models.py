@@ -102,3 +102,4 @@ class ChatOut(BaseModel):
     answer: str
     intent: str
     request_id: str = ""
+    trace: dict = {}

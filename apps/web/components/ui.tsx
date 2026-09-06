@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-
 export function Card({ children, glow = false }: { children: ReactNode; glow?: boolean }) {
   return <div className={"card" + (glow ? " glow" : "")}>{children}</div>;
 }
@@ -86,4 +85,48 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   }, deps);
   useEffect(load, [load]);
   return { data, error, busy, reload: load };
+}
+
+export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  if (!open) return null;
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="row" style={{ alignItems: "center" }}>
+          <h3 style={{ margin: 0, flex: 1 }}>{title}</h3>
+          <button className="btn ghost small" onClick={onClose}>Close</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+  return (
+    <div className="row" style={{ gap: 6 }}>
+      {tabs.map((t) => (
+        <button key={t} className={t === active ? "btn small" : "btn ghost small"} onClick={() => onChange(t)}>
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function ApiStatus({ check }: { check: () => Promise<unknown> }) {
+  const [ok, setOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    const ping = () => check().then(() => live && setOk(true)).catch(() => live && setOk(false));
+    ping();
+    const id = setInterval(ping, 30000);
+    return () => { live = false; clearInterval(id); };
+  }, [check]);
+  return (
+    <span className="statuspill" title={ok === null ? "checking" : ok ? "API live" : "API unreachable"}>
+      <span className={"livedot" + (ok === true ? " on" : ok === false ? " off" : "")} />
+      {ok === null ? "connecting" : ok ? "live" : "offline"}
+    </span>
+  );
 }

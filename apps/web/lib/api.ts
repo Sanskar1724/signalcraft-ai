@@ -48,8 +48,11 @@ export const api = {
   insights: () => req<{ insights: string[] }>("/api/insights"),
   chat: (message: string) =>
     req<ChatReply>("/api/agent/chat", { method: "POST", body: JSON.stringify({ message }) }),
+  learn: () => req<{ learned: string[] }>("/api/agent/learn", { method: "POST" }),
   memories: () => req<{ memories: Memory[] }>("/api/agent/memory"),
   calendar: () => req<{ items: CalendarItem[] }>("/api/calendar"),
+  schedule: (s: { platform: string; scheduled_for: string; content_id?: number; notes: string }) =>
+    req("/api/calendar", { method: "POST", body: JSON.stringify(s) }),
 };
 
 export interface Profile {
@@ -110,7 +113,7 @@ export interface ContentItem {
 export interface ContentDetail extends ContentItem {
   body: string;
   brief: Record<string, unknown>;
-  versions: { version: number; score: number }[];
+  versions: { version: number; score: number; created_at: string }[];
   performance: Record<string, number>;
 }
 
@@ -144,12 +147,15 @@ export interface AnalyticsSummary {
   best_topics: { topic: string; posts: number; avg_engagement: number }[];
   weak_topics: { topic: string; posts: number; avg_engagement: number }[];
   by_platform: { platform: string; posts: number; avg_engagement: number }[];
+  top_content: { id: number; title: string; performance_score: number }[];
+  rows: { id: number; title: string; platform: string; engagement_rate: number; performance_score: number }[];
 }
 
 export interface ChatReply {
   answer: string;
   intent: string;
   request_id: string;
+  trace: { request_id: string; steps: { stage: string; detail?: unknown }[] };
 }
 
 export interface Memory {

@@ -12,9 +12,13 @@ const SUGGESTIONS = [
   "What topics are currently rising?",
 ];
 
+function stamp() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function AgentPage() {
   const [q, setQ] = useState("");
-  const [log, setLog] = useState<{ me: string; bot: string }[]>([]);
+  const [log, setLog] = useState<{ me: string; at: string; bot: string; trace: { stage: string }[] }[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function ask(text: string) {
@@ -24,9 +28,9 @@ export default function AgentPage() {
     setBusy(true);
     try {
       const r = await api.chat(msg);
-      setLog((l) => [...l, { me: msg, bot: r.answer }]);
+      setLog((l) => [...l, { me: msg, at: stamp(), bot: r.answer, trace: r.trace?.steps ?? [] }]);
     } catch (e) {
-      setLog((l) => [...l, { me: msg, bot: `Error: ${(e as Error).message}` }]);
+      setLog((l) => [...l, { me: msg, at: stamp(), bot: `Error: ${(e as Error).message}`, trace: [] }]);
     } finally {
       setBusy(false);
     }
@@ -35,7 +39,7 @@ export default function AgentPage() {
   return (
     <>
       <h1>Ask your content agent</h1>
-      <p className="sub">Answers come from your data and tools — never model knowledge alone.</p>
+      <p className="sub">Answers come from your data and tools — expand any reply to see exactly what the agent did.</p>
       <div className="row">
         {SUGGESTIONS.map((s) => (
           <button key={s} className="btn ghost small" onClick={() => ask(s)}>{s}</button>
@@ -44,10 +48,22 @@ export default function AgentPage() {
       <div className="thread">
         {log.map((m, i) => (
           <div key={i} style={{ display: "contents" }}>
-            <div className="bubble me">{m.me}</div>
-            <div className="bubble"><pre>{m.bot}</pre></div>
+            <div className="bubble me">{m.me}<div className="stamp">{m.at}</div></div>
+            <div className="bubble">
+              <pre>{m.bot}</pre>
+              <div className="stamp">{m.at}</div>
+              {m.trace.length > 0 && (
+                <details className="trace">
+                  <summary>Execution trace ({m.trace.length} steps)</summary>
+                  {m.trace.map((s, j) => (
+                    <p key={j} className="muted">· {s.stage}</p>
+                  ))}
+                </details>
+              )}
+            </div>
           </div>
         ))}
+        {busy && <div className="bubble"><span className="spin" />Consulting your data…</div>}
       </div>
       <Card>
         <div className="row">

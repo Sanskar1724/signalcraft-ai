@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import Logo from "../components/Logo";
+import Status from "../components/Status";
 import "./globals.css";
 
 const NAV: [string, string][] = [
@@ -13,6 +14,7 @@ const NAV: [string, string][] = [
   ["Content Calendar", "/calendar"],
   ["AI Insights", "/insights"],
   ["Agent", "/agent"],
+  ["Settings", "/settings"],
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -36,7 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </Link>
               ))}
             </nav>
-            <div className="sidefoot">SignalCraft AI · v0.1 · local MVP</div>
+            <div className="sidefoot"><Status /> · v0.1 · local MVP</div>
           </aside>
           <main className="main">{children}</main>
         </div>

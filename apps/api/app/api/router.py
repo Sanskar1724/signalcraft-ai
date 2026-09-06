@@ -99,8 +99,13 @@ async def get_insights(user_id: int = Depends(get_user_id)) -> dict:
 @router.post("/agent/chat", response_model=ChatOut)
 async def post_chat(body: ChatIn, user_id: int = Depends(get_user_id)) -> dict:
     out = agent.chat(body.message, user_id)
-    return {"answer": out["answer"], "intent": out["intent"],
+    return {"answer": out["answer"], "intent": out["intent"], "trace": out.get("trace", {}),
             "request_id": out.get("request_id", current_request_id())}
+
+
+@router.post("/agent/learn")
+async def post_learn(user_id: int = Depends(get_user_id)) -> dict:
+    return agent.learn(user_id)
 
 
 @router.get("/agent/memory")

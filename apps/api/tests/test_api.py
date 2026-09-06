@@ -71,6 +71,8 @@ def test_full_flow(client):
     assert client.get("/api/insights").json()["insights"]
     chat = client.post("/api/agent/chat", json={"message": "What should I post today?"}).json()
     assert "Observed fact" in chat["answer"] and chat["request_id"]
+    assert chat["trace"]["steps"]
+    assert client.post("/api/agent/learn").json()["learned"]
     assert client.get("/api/debug/llm").json()["usage"]
 
 
