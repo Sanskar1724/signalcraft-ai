@@ -6,10 +6,10 @@ setup:
 	cp -n .env.example .env || copy .env.example .env
 
 api:
-	uvicorn apps.api.app.main:app --app-dir . --reload --port 8000
+	uvicorn apps.api.app.main:app --app-dir . --reload --port 8001
 
 web:
-	cd apps/web && npm install && npm run dev
+	cd apps/web && npm install && npm run dev -- --port 3001
 
 test:
 	python -m pytest -q
