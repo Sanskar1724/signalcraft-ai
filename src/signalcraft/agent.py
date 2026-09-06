@@ -1,0 +1,109 @@
+"""Content agent (§11, §18): controlled workflow, tool-using, observable (§24).
+
+Pipeline (bounded: max 8 tool calls, 1 revise loop):
+  intent -> creator profile -> memory -> research -> trends/opps ->
+  strategy -> content/critique -> store -> answer.
+Data questions always hit the DB first — never model knowledge alone (§18).
+"""
+from __future__ import annotations
+
+from . import analytics as _an
+from .content.generator import generate_content
+from .llm import LLMGateway
+from .memory import recall
+from .observability import Trace
+from .opportunities import list_opportunities
+from .profiles import get_profile
+from .research import list_recent, search
+
+
+def classify_intent(text: str) -> str:
+    t = text.lower()
+    if any(k in t for k in ["why did", "perform poorly", "analyze", "last 10", "last 5", "analytics"]):
+        return "analyze"
+    if any(k in t for k in ["linkedin", "turn this into", "make this into"]) and "linkedin" in t:
+        return "transform_linkedin"
+    if "x thread" in t or ("thread" in t) or ("twitter" in t) or (t.strip().startswith("x ") ):
+        return "transform_x"
+    if "blog" in t and any(k in t for k in ["turn", "make", "into", "write"]):
+        return "transform_blog"
+    if "trending" in t or "niche" in t:
+        return "trends"
+    if "week" in t or "ideas" in t or "content ideas" in t:
+        return "ideas"
+    if "today" in t or "post today" in t or "what should i" in t:
+        return "recommend"
+    if text.strip().startswith("Why is") or "relevant to me" in t:
+        return "why"
+    return "general"
+
+
+def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> dict:
+    gateway = gateway or LLMGateway()
+    trace = Trace(request)
+    profile = get_profile(user_id)
+    trace.add("understand_request", classify_intent(request))
+    trace.add("creator_context", {"niche": profile.niche, "audience": profile.audience})
+    mem = recall(user_id, limit=5)
+    trace.add("memory", [f"{m['kind']}:{m['key']}" for m in mem])
+
+    intent = classify_intent(request)
+    calls = 0
+
+    def tool(name: str, detail=None):
+        nonlocal calls
+        calls += 1
+        trace.add(f"tool:{name}", detail)
+
+    if intent == "analyze":
+        tool("analytics.summary")
+        s = _an.summary(user_id)
+        tool("analytics.insights")
+        ins = _an.insights(user_id)
+        answer = ("Observed fact: " + (f"{s['posts']} posts, avg engagement {s['avg_engagement']}%." if s["posts"]
+                  else "no posts tracked yet.") + "\nInterpretation: " +
+                  ("; ".join(ins) if ins else "not enough data.") +
+                  "\nRecommendation: double down on your top topic this week and reframe the weakest one.")
+        return {"answer": answer, "intent": intent, "trace": trace.to_dict()}
+
+    if intent in {"transform_linkedin", "transform_x", "transform_blog"}:
+        tool("opportunities.list")
+        opps = list_opportunities(user_id)
+        if not opps:
+            return {"answer": "No opportunities yet. Refresh research first (Trending page).",
+                    "intent": intent, "trace": trace.to_dict()}
+        plat = {"transform_linkedin": "LinkedIn", "transform_x": "X",
+                "transform_blog": "Blog"}[intent]
+        tool("content.generate", {"platform": plat})
+        res = generate_content(opps[0]["id"], platform=plat, user_id=user_id,
+                               gateway=gateway, trace=trace)
+        c = res["content"]
+        return {"answer": (f"Observed fact: transformed using your top opportunity '{opps[0]['topic']}'.\n"
+                           f"Interpretation: angle fits {profile.audience}.\n"
+                           f"Recommendation: review quality {c['quality_score']}/10, then publish.\n\n{c['body'][:1500]}"),
+                "intent": intent, "content_id": c["id"], "trace": trace.to_dict()}
+
+    if intent in {"trends", "ideas", "recommend", "why", "general"}:
+        tool("research.search")
+        ev = search(user_id, profile.niche.split("+")[0].strip() or profile.niche) or list_recent(user_id)
+        tool("opportunities.list")
+        opps = list_opportunities(user_id)
+        trace.add("opportunity_selected", opps[0]["topic"] if opps else None)
+        if not opps:
+            return {"answer": ("Observed fact: no opportunities scored yet.\n"
+                               "Interpretation: research exists but trends not computed.\n"
+                               "Recommendation: click 'Refresh research + trends' on the Trending page."),
+                    "intent": intent, "trace": trace.to_dict()}
+        top = opps[:3]
+        lines = [f"{i+1}. {o['topic']} ({o['score']}/100, conf {o['confidence']}) — {o['angle'][:140]}"
+                 for i, o in enumerate(top)]
+        src = f" Evidence: {ev[0]['title']} [{ev[0]['source']}]" if ev else ""
+        answer = ("Observed fact: top opportunities ranked from your recent research." + src +
+                  "\nInterpretation: these best match your niche + audience + memory.\n" +
+                  "Recommendation: start with #1 today.\n\n" + "\n".join(lines))
+        if intent == "why":
+            answer += f"\n\nWhy '{top[0]['topic']}' for you: {top[0]['why_you']}"
+        return {"answer": answer, "intent": intent, "trace": trace.to_dict()}
+
+    return {"answer": "I can help with posting ideas, trends, transforms, and performance analysis.",
+            "intent": intent, "trace": trace.to_dict()}
