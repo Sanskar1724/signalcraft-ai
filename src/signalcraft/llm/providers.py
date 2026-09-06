@@ -120,6 +120,8 @@ class OpenRouterProvider(BaseProvider):
         self.model = model
 
     def _cost(self, pt: int, ct: int) -> float:
+        if self.model == "openrouter/free" or self.model.endswith(":free"):
+            return 0.0
         pr, cr = self.PRICE_PER_1K.get(self.model, (0.001, 0.003))
         return round(pt / 1000 * pr + ct / 1000 * cr, 6)
 
@@ -137,7 +139,17 @@ class OpenRouterProvider(BaseProvider):
         )
         resp.raise_for_status()
         data = resp.json()
-        text = data["choices"][0]["message"]["content"]
+        try:
+            msg = data["choices"][0]["message"]
+        except (KeyError, IndexError, TypeError):
+            raise ValueError(f"unexpected OpenRouter response: {str(data)[:200]}")
+        text = msg.get("content") or ""
+        if isinstance(text, list):  # content-block responses
+            text = "".join(b.get("text", "") for b in text if isinstance(b, dict))
+        if not text:  # reasoning models may put output here
+            text = msg.get("reasoning", "") or ""
+        if not text:
+            raise ValueError("empty model response (content and reasoning both empty)")
         usage = data.get("usage", {})
         pt = int(usage.get("prompt_tokens", _tokens(prompt)))
         ct = int(usage.get("completion_tokens", _tokens(text)))

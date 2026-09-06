@@ -14,6 +14,8 @@ def client(tmp_path, monkeypatch):
     from signalcraft import config, db
     monkeypatch.setattr(config.settings, "db_path", tmp_path / "api.db")
     monkeypatch.setattr(config.settings, "api_key", "")
+    monkeypatch.setattr(config.settings, "openrouter_api_key", "")
+    monkeypatch.setattr(config.settings, "openai_api_key", "")
     db.init_db(tmp_path / "api.db")
     from apps.api.app.main import app
     from fastapi.testclient import TestClient

@@ -13,3 +13,11 @@ def tmp_db(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "db_path", p)
     db.init_db(p)
     return p
+
+
+@pytest.fixture(autouse=True)
+def _force_mock_llm(monkeypatch):
+    """Tests stay offline/deterministic: never spend live quota (§26)."""
+    from signalcraft import config
+    monkeypatch.setattr(config.settings, "openrouter_api_key", "")
+    monkeypatch.setattr(config.settings, "openai_api_key", "")
