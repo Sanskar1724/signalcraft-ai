@@ -85,20 +85,20 @@ if page == "Overview":
 # ---------- Trending ----------
 elif page == "Trending For You":
     st.header("Trending — filtered for you")
-    st.caption("Score = 100 × (0.20 freshness + 0.15 growth + 0.20 relevance + "
-               "0.15 audience fit + 0.10 novelty + 0.05 (1 − competition) + 0.15 creator fit).")
+    st.caption("Trend score = 30% growth + 25% freshness + 20% relevance + "
+               "15% source momentum + 10% novelty (configurable via TREND_WEIGHTS_JSON).")
     trends = detect_trends()
     if not trends:
         st.info("No trends. Refresh research first.")
     else:
         df = pd.DataFrame(trends)
-        st.bar_chart(df.set_index("topic")["score"])
+        st.bar_chart(df.set_index("topic")["trend_score"])
         for t in trends:
-            with st.expander(f"{t['topic']} — {t['score']}"):
+            with st.expander(f"{t['topic']} — {t['trend_score']}"):
                 st.write(f"Freshness {t['freshness']} · Growth {t['growth']} · "
-                         f"Relevance {t['relevance']} · Audience fit {t.get('audience_fit')} · "
-                         f"Novelty {t['novelty']} · Competition {t.get('competition')} · "
-                         f"Creator fit {t.get('creator_fit')}")
+                         f"Relevance {t['relevance']} · Momentum {t.get('source_momentum')} · "
+                         f"Novelty {t['novelty']} · Audience fit {t.get('audience_fit')} · "
+                         f"Competition {t.get('competition')}")
                 st.write("Evidence:")
                 for e in t["evidence_titles"][:3]:
                     st.markdown(f"- {e}")
@@ -111,7 +111,7 @@ elif page == "Content Opportunities":
         st.info("No opportunities. Refresh research first.")
     for o in opps:
         with st.container(border=True):
-            st.markdown(f"### {o['topic']} — {o['score']}/100")
+            st.markdown(f"### {o['topic']} — opportunity {o['score']}/100 · trend {o.get('trend_score', '?')}")
             st.markdown("**Observed fact**")
             st.write(o["why_now"])
             st.markdown("**AI interpretation**")

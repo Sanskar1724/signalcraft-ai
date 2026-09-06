@@ -1,0 +1,16 @@
+body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #1a1a1a; background: #fafafa; }
+.shell { display: flex; min-height: 100vh; }
+.side { width: 240px; padding: 20px; background: #fff; border-right: 1px solid #e5e5e5; }
+.brand { font-weight: 700; font-size: 18px; }
+.tag { color: #666; font-size: 13px; }
+.navlink { display: block; padding: 8px 10px; border-radius: 6px; color: #333; text-decoration: none; }
+.navlink:hover { background: #f0f0f0; }
+.main { flex: 1; padding: 28px; max-width: 1100px; }
+.card { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 16px; margin: 12px 0; }
+.muted { color: #666; font-size: 13px; }
+.error { color: #b00020; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.metric { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 14px; }
+.metric b { font-size: 24px; display: block; }
+button { cursor: pointer; }
+input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 6px; width: 100%; }

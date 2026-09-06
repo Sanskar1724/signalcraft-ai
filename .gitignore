@@ -7,3 +7,10 @@ data/*.db
 data/*.db-*
 .streamlit/secrets.toml
 .pytest_cache/
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+npm-*.log
+dist/
+build/

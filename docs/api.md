@@ -1,17 +1,28 @@
-# API
+# API (§23)
 
-All calls are typed Python functions (no separate HTTP server in MVP, §22).
+Base: `/api` (prefix constant, versionable to `/api/v1`). Errors use
+`{"error": {"code", "message", "request_id"}}`; every response carries
+`X-Request-ID`. Auth: `X-API-Key` when `SIGNALCRAFT_API_KEY` is set, else open
+local mode (§24).
 
-- Profiles: `get_profile()`, `update_profile()`, `seed_default_profile()`
-- Research: `collect_and_store(query, limit, use_live)`, `list_recent()`, `search()`
-- Trends: `detect_trends(top_n)` -> `[{topic, freshness, growth, relevance, novelty, score, evidence}]`
-- Opportunities: `build_opportunities()`, `list_opportunities()`
-- Content: `generate_content(opportunity_id, platform)`, `list_content()`, `critique(body, platform, topic)`
-- Analytics: `record_performance(...)`, `summary()`, `insights()`
-- Memory: `remember()`, `recall()`, `get_memory_boost()`, `learn_from_performance()`
-- Agent: `run(request)` -> `{answer, intent, trace[, content_id]}`
-- Calendar: `schedule()`, `upcoming()`
-- LLM: `LLMGateway().generate / structured_generate / embed`
+| Method & path | Purpose |
+|---|---|
+| GET `/api/health` | liveness |
+| GET `/api/profile` · PUT `/api/profile` | creator profile (§7) |
+| GET `/api/trends?top_n=` | trend signals (§10) |
+| GET `/api/opportunities?refresh=` | ranked opportunities (§11) |
+| POST `/api/research` `{query, limit, use_live}` | refresh pipeline (§8-§9) |
+| POST `/api/content/generate` | brief → draft → critique → store |
+| POST `/api/content/critique` | structured rubric score (§15) |
+| POST `/api/content/revise` | bounded improvement pass, new version |
+| GET `/api/content` · GET `/api/content/{id}` | library + detail (§19) |
+| POST `/api/content/{id}/performance` | manual metric entry (§17) |
+| GET `/api/analytics` · GET `/api/insights` | scores + creator insights |
+| POST `/api/agent/chat` | orchestrator answer + trace (§20) |
+| GET `/api/agent/memory` | durable memories (§16) |
+| GET/POST `/api/calendar` | planned content (§19) |
+| GET `/api/debug/llm` | provider/model/task/latency/cost stats (§25) |
 
-Validation: profile fields allow-listed; performance metrics must be >= 0;
-`generate_content` raises `ValueError` on unknown opportunity; bodies capped at 6000 chars.
+Pagination: `limit`/`offset` on list routes. Run the API:
+`uvicorn apps.api.app.main:app --app-dir . --reload`. Tests:
+`pytest apps/api/tests -q` (TestClient, no network).

@@ -1,15 +1,17 @@
 # Development guide
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env   # optional; offline Mock LLM is the default
-pytest -q
-streamlit run app.py
+make setup && cp -n .env.example .env
+make test            # pytest: domain (tests/) + API (apps/api/tests)
+make seed            # demo data
+make api             # uvicorn :8000
+make web             # next dev :3000 (cd apps/web, npm install first)
+make docker-up       # full stack (needs Docker daemon)
 ```
 
-Conventions: stdlib-first, typed functions, bounded loops (1 revise, 8 tool
-calls, 60s agent budget), no secrets in code, `prompt.txt` is the product
-constitution — re-read it before adding architecture. Run `pytest -q` before
-every commit; keep the app bootable at every phase (§27).
+Conventions (§38): reuse domain logic (no duplicate utilities), small
+modules, business logic out of UI, providers behind interfaces, DB logic in
+`db.py`/repositories, validate external input (API schemas, `security`) and
+LLM output (`llm/schemas.py`), tests for scoring/ranking/analytics/agent,
+docs updated with architecture changes. Commits: `feat:`/`test:`/`chore:`.
+`prompt1.txt` is the constitution; keep a working system at every phase (§40).

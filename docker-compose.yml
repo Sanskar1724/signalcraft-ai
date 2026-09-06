@@ -1,0 +1,44 @@
+# SignalCraft AI (§3 infrastructure). MVP runs the api on SQLite; postgres +
+# redis are provisioned for the Phase-2 cutover (see docs/database.md).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - signalcraft-data:/data
+    depends_on:
+      - redis
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      - api
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: signalcraft
+      POSTGRES_USER: signalcraft
+      POSTGRES_PASSWORD: signalcraft
+    volumes:
+      - signalcraft-pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - signalcraft-redis:/data
+
+volumes:
+  signalcraft-data:
+  signalcraft-pg:
+  signalcraft-redis:

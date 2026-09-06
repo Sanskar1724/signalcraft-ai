@@ -1,0 +1,1431 @@
+# Build SignalCraft AI — Personal AI Content Intelligence & Agent Platform
+
+You are a senior full-stack AI engineer, backend architect, data engineer, and product engineer.
+
+Build a production-quality MVP called **SignalCraft AI**.
+
+## 1. Product Vision
+
+SignalCraft AI is not a basic AI content writer.
+
+It is a **personal AI content intelligence and generation platform** that:
+
+1. Understands an individual creator.
+2. Understands their niche, audience, goals, expertise, and writing style.
+3. Collects fresh information from the web and other data sources.
+4. Detects current trends and content opportunities.
+5. Determines which trends are relevant to that specific user.
+6. Recommends what the user should create.
+7. Generates platform-specific content.
+8. Critiques and improves generated content.
+9. Stores the user's content history.
+10. Analyzes content performance.
+11. Learns what works for the individual creator.
+12. Uses that knowledge to improve future recommendations.
+
+The core product loop is:
+
+USER → RESEARCH → TREND INTELLIGENCE → CONTENT OPPORTUNITY → AGENT → CONTENT → PERFORMANCE → LEARNING → BETTER RECOMMENDATIONS
+
+The product should feel like a **personal AI content strategist**, not an LLM wrapper.
+
+---
+
+# 2. Important Development Philosophy
+
+Keep the implementation:
+
+* Simple
+* Modular
+* Production-oriented
+* Easy to understand
+* Easy to extend
+* Properly typed
+* Well documented
+* Testable
+
+Do NOT over-engineer.
+
+Do NOT create unnecessary microservices.
+
+Do NOT create dozens of autonomous agents.
+
+Do NOT use an LLM for deterministic operations that normal code can perform.
+
+Use normal code for:
+
+* Database operations
+* Filtering
+* Sorting
+* Scoring
+* Aggregation
+* Validation
+* Authentication
+* API handling
+* Metrics calculations
+
+Use LLMs for:
+
+* Reasoning
+* Summarization
+* Classification
+* Content strategy
+* Content generation
+* Criticism
+* Rewriting
+* Semantic analysis
+
+---
+
+# 3. Recommended Technology Stack
+
+Use:
+
+Frontend:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* shadcn/ui
+
+Backend:
+
+* Python
+* FastAPI
+* Pydantic
+
+Database:
+
+* PostgreSQL
+* pgvector
+
+Cache / background processing:
+
+* Redis
+* Use a lightweight background-job approach initially.
+
+AI:
+
+* OpenRouter as the initial LLM gateway.
+* Design an internal LLM abstraction so providers can be changed later.
+
+Research:
+
+* Web search API/tool
+* RSS feeds
+* Public APIs where practical
+
+Infrastructure:
+
+* Docker
+* docker-compose
+
+Testing:
+
+* Pytest for backend
+* Vitest/appropriate testing framework for frontend
+* API integration tests
+
+Code quality:
+
+* Ruff
+* Black
+* Type checking
+* ESLint
+* Prettier
+
+---
+
+# 4. Architecture
+
+Use a modular monolith.
+
+Do NOT create microservices.
+
+High-level architecture:
+
+Frontend
+↓
+FastAPI API
+↓
+Application Services
+↓
+Domain Modules
+├── User Intelligence
+├── Research
+├── Trend Intelligence
+├── Content Intelligence
+├── Agent
+├── Analytics
+└── Memory
+↓
+PostgreSQL + pgvector
+↓
+External Providers
+├── LLM
+├── Web Search
+├── RSS
+└── Future Social APIs
+
+Keep provider-specific code behind interfaces.
+
+---
+
+# 5. Repository Structure
+
+Use a clean monorepo:
+
+signalcraft-ai/
+
+├── apps/
+│   ├── web/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── lib/
+│   │   ├── hooks/
+│   │   └── types/
+│   │
+│   └── api/
+│       ├── app/
+│       │   ├── api/
+│       │   ├── core/
+│       │   ├── models/
+│       │   ├── schemas/
+│       │   ├── services/
+│       │   ├── repositories/
+│       │   ├── providers/
+│       │   ├── agents/
+│       │   ├── analytics/
+│       │   └── main.py
+│       └── tests/
+│
+├── packages/
+│   └── shared/
+│
+├── docs/
+│   ├── architecture.md
+│   ├── api.md
+│   ├── database.md
+│   ├── agent.md
+│   └── development.md
+│
+├── scripts/
+├── docker-compose.yml
+├── .env.example
+├── README.md
+└── Makefile
+
+Keep the structure understandable.
+
+---
+
+# 6. Core Database Model
+
+Create a clean relational model.
+
+Main entities:
+
+users
+profiles
+audiences
+topics
+content
+content_versions
+content_performance
+research_documents
+trend_signals
+content_opportunities
+recommendations
+calendar_items
+agent_memories
+llm_requests
+
+Important relationships:
+
+User
+├── Profile
+├── Audience
+├── Topics
+├── Content
+├── Performance
+├── Recommendations
+├── Calendar
+└── Memories
+
+Content
+├── Versions
+└── Performance
+
+Research
+└── Trend Signals
+
+Trend Signals
+└── Content Opportunities
+
+Use UUIDs.
+
+Add timestamps.
+
+Add indexes where useful.
+
+Use migrations.
+
+Never store important application state only inside LLM prompts.
+
+---
+
+# 7. User Intelligence
+
+Create a creator profile.
+
+The user should be able to configure:
+
+* Name
+* Niche
+* Expertise level
+* Audience
+* Goals
+* Preferred platforms
+* Writing style
+* Tone
+* Topics
+* Topics to avoid
+* Content preferences
+* Posting frequency
+
+Example:
+
+Niche:
+AI + Data Engineering
+
+Audience:
+Students + Developers + Data Engineers
+
+Goal:
+Personal branding
+
+Style:
+Technical + simple + professional
+
+Avoid:
+Generic AI hype + clickbait
+
+The system should use this profile throughout the application.
+
+---
+
+# 8. Research Engine
+
+Build a research service.
+
+Input:
+
+User niche + topics + current context
+
+Output:
+
+Research documents containing:
+
+* Title
+* URL
+* Source
+* Published date
+* Retrieved date
+* Summary
+* Keywords
+* Topic
+* Source type
+* Relevance
+* Freshness
+
+Support initially:
+
+1. Web search
+2. RSS feeds
+
+Design interfaces so Reddit, GitHub, YouTube, Google Trends, news APIs, etc. can be added later.
+
+Do not hard-code providers throughout the application.
+
+---
+
+# 9. Research Processing
+
+When new research is collected:
+
+1. Normalize it.
+2. Remove duplicates.
+3. Extract important topics.
+4. Summarize it.
+5. Generate embeddings.
+6. Store it.
+7. Associate it with relevant topics.
+
+Do not repeatedly send identical documents to the LLM.
+
+Use caching/deduplication.
+
+---
+
+# 10. Trend Intelligence Engine
+
+Create a trend analysis system.
+
+For each topic calculate:
+
+* Freshness score
+* Growth score
+* Relevance score
+* Source momentum
+* Novelty
+* Audience fit
+* Competition estimate
+
+Create a transparent score:
+
+Trend Score
+
+and separately:
+
+Content Opportunity Score
+
+Do NOT pretend these are scientifically perfect metrics.
+
+Document the scoring assumptions.
+
+Example:
+
+Trend Score:
+30% growth
+25% freshness
+20% relevance
+15% source momentum
+10% novelty
+
+Keep weights configurable.
+
+---
+
+# 11. Personalized Content Opportunity
+
+This is one of the most important features.
+
+Do not simply show:
+
+"Trending topics"
+
+Instead show:
+
+"Trending topics relevant to YOU."
+
+For every opportunity display:
+
+* Topic
+* Trend score
+* User relevance
+* Audience fit
+* Freshness
+* Competition
+* Opportunity score
+* Recommended angle
+* Recommended platforms
+* Reason for recommendation
+
+Example:
+
+AI Agents + Data Engineering
+
+Trend Score: 94
+Audience Fit: 97
+Freshness: 96
+Competition: Medium
+Opportunity: 93
+
+Recommended angle:
+
+"How AI agents are changing data pipeline development."
+
+The system should explain WHY this opportunity was recommended.
+
+---
+
+# 12. Content Agent
+
+Build ONE orchestrator agent.
+
+Do not create unnecessary autonomous agents.
+
+The orchestrator should use tools/services.
+
+Workflow:
+
+USER REQUEST
+↓
+Understand intent
+↓
+Load user profile
+↓
+Load relevant memory
+↓
+Research if necessary
+↓
+Analyze current trends
+↓
+Analyze previous content
+↓
+Select opportunity
+↓
+Create content brief
+↓
+Generate content
+↓
+Critique content
+↓
+Improve content
+↓
+Validate output
+↓
+Return final content
+
+The agent must have access to tools such as:
+
+get_user_profile()
+get_user_memory()
+search_research()
+get_trending_topics()
+get_content_history()
+get_content_performance()
+rank_opportunities()
+generate_content()
+critique_content()
+
+Use deterministic services wherever possible.
+
+---
+
+# 13. Content Brief
+
+Before generating final content, create an internal structured content brief:
+
+* Topic
+* Target audience
+* Objective
+* Platform
+* Core message
+* Angle
+* Hook strategy
+* Supporting evidence
+* CTA
+* Tone
+* Things to avoid
+
+The LLM should generate from this brief.
+
+This improves consistency and debuggability.
+
+---
+
+# 14. Platform Adapters
+
+Create platform-specific generation.
+
+Initial platforms:
+
+1. LinkedIn
+2. X / Twitter
+3. Blog
+
+Do not simply generate one article and truncate it.
+
+Each platform must have its own format.
+
+LinkedIn:
+
+Hook
+→ Context
+→ Insight
+→ Explanation
+→ Takeaway
+→ CTA
+
+X:
+
+Strong opening
+→ concise insight
+→ supporting points
+→ optional thread structure
+
+Blog:
+
+Title
+→ Introduction
+→ Sections
+→ Evidence
+→ Examples
+→ Conclusion
+
+Store platform rules as configuration rather than scattered hard-coded strings.
+
+---
+
+# 15. Content Quality System
+
+Every generated piece should pass through a critic.
+
+Evaluate:
+
+* Relevance
+* Clarity
+* Originality
+* Hook strength
+* Readability
+* Platform fit
+* Factual grounding
+* Tone consistency
+* CTA quality
+
+Return a structured score.
+
+Example:
+
+Content Score: 87
+
+Relevance: 92
+Hook: 81
+Readability: 89
+Originality: 76
+Evidence: 91
+Platform Fit: 88
+
+If quality is below a configurable threshold, revise the content.
+
+Do not allow endless retries.
+
+Use a maximum retry count.
+
+---
+
+# 16. Personal Content Memory
+
+Create memory for the creator.
+
+Store useful information such as:
+
+* Preferred writing style
+* Frequently discussed topics
+* Topics performing well
+* Topics performing poorly
+* Successful hooks
+* Weak hooks
+* Strong formats
+* Strong platforms
+* Audience patterns
+* User feedback
+
+Use pgvector for semantic memory.
+
+Do NOT save every conversation blindly.
+
+Only store useful, durable information.
+
+---
+
+# 17. Content Analytics
+
+Create a content analytics system.
+
+Metrics:
+
+* Impressions
+* Likes
+* Comments
+* Shares
+* Saves if available
+* Clicks if available
+* Engagement rate
+* Reach if available
+
+Create:
+
+Content Performance Score
+
+and trend comparisons.
+
+Initial implementation may allow manual metric entry.
+
+Design the data model for future API integrations.
+
+---
+
+# 18. Learning Loop
+
+This is critical.
+
+The system should analyze historical performance.
+
+Example:
+
+Previous content:
+
+AI Agents → high engagement
+Generic AI news → low engagement
+Technical project breakdown → high engagement
+
+The system should derive insights such as:
+
+"Technical AI content performs better for this creator than generic AI news."
+
+These insights should influence future opportunity ranking.
+
+The loop is:
+
+Content
+↓
+Performance
+↓
+Analysis
+↓
+User Insight
+↓
+Memory
+↓
+Future Recommendation
+
+Do not claim that the system "learns" through model fine-tuning.
+
+Initially learning means updating structured user intelligence and memory.
+
+---
+
+# 19. Dashboard
+
+Create a polished modern dashboard.
+
+Main sections:
+
+## Overview
+
+Show:
+
+* Content performance
+* Engagement trend
+* Top topics
+* Top platforms
+* Recent recommendations
+* AI insights
+
+## Trending For You
+
+Show personalized trends.
+
+## Content Opportunities
+
+Show ranked opportunities.
+
+## Create
+
+Allow the user to:
+
+* Select an opportunity
+* Select platform
+* Generate content
+* Regenerate
+* Critique
+* Improve
+* Copy/export
+
+## Content Library
+
+Show:
+
+* Drafts
+* Published content
+* Platform
+* Topic
+* Date
+* Performance
+
+## Analytics
+
+Show:
+
+* Engagement trend
+* Best topics
+* Best formats
+* Best platforms
+* Best-performing content
+* Weak-performing content
+
+## Content Calendar
+
+Show planned content.
+
+## AI Insights
+
+Show:
+
+* What is working
+* What is not working
+* What to try next
+
+---
+
+# 20. "Ask Your Content Agent"
+
+Implement a simple conversational interface.
+
+Examples:
+
+"What should I post today?"
+
+"Give me the top 3 opportunities for my niche."
+
+"Why did my last post perform poorly?"
+
+"Turn this LinkedIn post into an X thread."
+
+"Make this less generic."
+
+"Give me a technical angle."
+
+"What topics are currently rising?"
+
+"Analyze my last 10 posts."
+
+The agent should call tools rather than answering everything from its language-model knowledge.
+
+---
+
+# 21. LLM Gateway
+
+Create an abstraction:
+
+LLMProvider
+
+Methods should support:
+
+* generate()
+* structured_generate()
+* embed()
+
+Initial provider:
+
+OpenRouter.
+
+But application code should NOT directly depend on OpenRouter.
+
+Use:
+
+LLM Gateway
+→ Provider Adapter
+
+This makes future support for OpenAI, Anthropic, Gemini, local models, etc. easy.
+
+Log:
+
+* provider
+* model
+* task
+* latency
+* token usage if available
+* success/failure
+* estimated cost if available
+
+Never log sensitive user content unnecessarily.
+
+---
+
+# 22. Prompt Architecture
+
+Do NOT put giant prompts everywhere.
+
+Use reusable prompt templates:
+
+* research_summary
+* topic_classification
+* trend_analysis
+* content_strategy
+* linkedin_generation
+* x_generation
+* blog_generation
+* content_critic
+* content_revision
+* insight_generation
+
+Keep prompts versioned.
+
+Return structured JSON where structured output is required.
+
+Validate all LLM outputs using Pydantic schemas.
+
+Never blindly trust LLM output.
+
+---
+
+# 23. API Design
+
+Create clean REST APIs.
+
+Examples:
+
+GET /api/profile
+
+PUT /api/profile
+
+GET /api/trends
+
+GET /api/opportunities
+
+POST /api/research
+
+POST /api/content/generate
+
+POST /api/content/critique
+
+POST /api/content/revise
+
+GET /api/content
+
+GET /api/content/{id}
+
+POST /api/content/{id}/performance
+
+GET /api/analytics
+
+GET /api/insights
+
+POST /api/agent/chat
+
+Keep APIs versionable.
+
+Use proper error handling.
+
+---
+
+# 24. Security
+
+Implement:
+
+* Authentication
+* Authorization
+* Environment-based secrets
+* Input validation
+* Rate limiting where appropriate
+* Secure API key handling
+* No API keys in frontend
+* No secrets committed to Git
+
+Create:
+
+.env.example
+
+Never commit .env.
+
+---
+
+# 25. Observability
+
+Add structured logging.
+
+Track:
+
+* Request ID
+* User ID where appropriate
+* Agent execution
+* Tool calls
+* LLM calls
+* Errors
+* Latency
+
+Create an internal debug view or logs useful for development.
+
+The agent should be observable.
+
+A developer should be able to understand:
+
+"What did the agent do before generating this post?"
+
+---
+
+# 26. Testing
+
+Do not only test the frontend.
+
+Test:
+
+### Backend unit tests
+
+* Trend scoring
+* Opportunity scoring
+* Analytics calculations
+* Platform formatting
+* Validation
+
+### Integration tests
+
+* Database
+* Research pipeline
+* LLM gateway
+* Agent tools
+
+### API tests
+
+* Authentication
+* Profile
+* Content generation
+* Analytics
+* Opportunities
+
+### Agent tests
+
+Use mocked LLM responses.
+
+Verify:
+
+* Correct tools are selected
+* Invalid outputs are rejected
+* Retry limits work
+* Research is used when necessary
+* User context is included
+
+---
+
+# 27. Seed Data
+
+Create realistic development seed data.
+
+Include:
+
+* One demo creator
+* 20+ content items
+* Multiple topics
+* Historical performance
+* Research documents
+* Trend signals
+* Opportunities
+
+This should make the dashboard look meaningful immediately.
+
+Use clearly fake/demo data.
+
+---
+
+# 28. Development Order
+
+Build strictly in this order:
+
+## Phase 1
+
+Project foundation
+
+## Phase 2
+
+Database + migrations
+
+## Phase 3
+
+Authentication + user profile
+
+## Phase 4
+
+Research engine
+
+## Phase 5
+
+Trend intelligence
+
+## Phase 6
+
+Opportunity ranking
+
+## Phase 7
+
+LLM gateway
+
+## Phase 8
+
+Content generation
+
+## Phase 9
+
+Content critic + revision
+
+## Phase 10
+
+Content memory
+
+## Phase 11
+
+Analytics
+
+## Phase 12
+
+Dashboard
+
+## Phase 13
+
+Agent chat
+
+## Phase 14
+
+Testing + observability
+
+## Phase 15
+
+Docker + deployment preparation
+
+Do not jump ahead.
+
+After each phase:
+
+1. Implement.
+2. Run tests.
+3. Verify manually.
+4. Fix errors.
+5. Update documentation.
+6. Only then continue.
+
+---
+
+# 29. MVP Boundary
+
+The first working release MUST NOT attempt to implement everything.
+
+MVP supports:
+
+* One user profile
+* Web/RSS research
+* Trend analysis
+* Personalized opportunities
+* LinkedIn generation
+* X generation
+* Blog generation
+* Content critic
+* Content library
+* Manual performance entry
+* Basic analytics
+* Personal memory
+* AI agent chat
+* Dashboard
+
+Do NOT initially implement:
+
+* Automatic social publishing
+* Payments
+* Team collaboration
+* Complex scheduling
+* Mobile app
+* Fine-tuning
+* Multi-tenant enterprise architecture
+* Dozens of integrations
+
+Design for them, but don't build them yet.
+
+---
+
+# 30. Future Extensions
+
+After the MVP is stable, the architecture should allow:
+
+* LinkedIn API
+* X API
+* YouTube
+* Reddit
+* GitHub
+* Google Trends
+* Newsletter integrations
+* Automatic publishing
+* Automatic scheduling
+* Competitor analysis
+* Multiple users
+* Team workspaces
+* Advanced recommendation models
+* A/B testing
+* Content experiments
+* Better performance prediction
+* More LLM providers
+
+Do not implement these unless specifically requested later.
+
+---
+
+# 31. UI/UX Requirements
+
+The UI should look like a serious SaaS product.
+
+Avoid:
+
+* Excessive gradients
+* Generic AI landing-page aesthetics
+* Giant unnecessary hero sections
+* Excessive animations
+* Cluttered dashboards
+
+Prefer:
+
+* Clean cards
+* Strong typography
+* Good spacing
+* Clear information hierarchy
+* Useful charts
+* Compact navigation
+* Responsive design
+* Professional dark/light support if practical
+
+The dashboard should prioritize decisions rather than decoration.
+
+---
+
+# 32. Error Handling
+
+Never silently fail.
+
+If research fails:
+
+Show a useful message.
+
+If the LLM fails:
+
+Allow retry/fallback.
+
+If structured output is invalid:
+
+Validate and retry within a limited number of attempts.
+
+If an external source is unavailable:
+
+Continue with available sources and clearly mark limitations.
+
+Never fabricate research or citations.
+
+Never claim a topic is trending without data supporting the claim.
+
+---
+
+# 33. Source Grounding
+
+Whenever content is based on current research:
+
+Store source references.
+
+Content generation should receive relevant evidence.
+
+Do not allow the model to invent URLs, statistics, quotes, or current events.
+
+For research-backed content, maintain:
+
+source
+title
+URL
+date
+summary
+
+The UI should make research provenance visible where appropriate.
+
+---
+
+# 34. Cost Optimization
+
+Optimize LLM usage.
+
+Use cheap/small models for:
+
+* Classification
+* Tagging
+* Simple summarization
+* Extraction
+
+Use stronger models for:
+
+* Strategy
+* Complex reasoning
+* Final content
+* Criticism
+
+Cache repeated research.
+
+Do not send huge histories to every LLM call.
+
+Retrieve only relevant memory.
+
+Use embeddings for semantic retrieval.
+
+Track estimated LLM cost.
+
+---
+
+# 35. Agent Reliability
+
+The agent must NOT have unlimited autonomy.
+
+Use:
+
+* Explicit tools
+* Tool schemas
+* Maximum iterations
+* Maximum retries
+* Timeouts
+* Validation
+* Structured outputs
+
+The agent should be predictable.
+
+A good agent is not one that does everything.
+
+A good agent is one that performs the correct actions reliably.
+
+---
+
+# 36. Documentation
+
+Create:
+
+README.md
+
+architecture.md
+
+database.md
+
+agent.md
+
+api.md
+
+development.md
+
+Include:
+
+* Project purpose
+* Architecture
+* Setup
+* Environment variables
+* Database setup
+* Running locally
+* Testing
+* Agent workflow
+* LLM configuration
+* Research configuration
+* Known limitations
+* Future roadmap
+
+The README should be professional enough for a GitHub portfolio.
+
+---
+
+# 37. Git Workflow
+
+Make logical commits.
+
+Examples:
+
+feat: initialize SignalCraft architecture
+
+feat: add user intelligence and profile
+
+feat: implement research pipeline
+
+feat: add trend intelligence engine
+
+feat: add content opportunity ranking
+
+feat: implement LLM gateway
+
+feat: add content generation pipeline
+
+feat: add content quality critic
+
+feat: add creator memory
+
+feat: add content analytics
+
+feat: build intelligence dashboard
+
+feat: add content agent
+
+test: add backend integration coverage
+
+chore: add docker deployment setup
+
+Do not make meaningless commits.
+
+---
+
+# 38. Critical Rules for the Coding Agent
+
+Before changing existing code:
+
+1. Inspect the repository.
+2. Understand the current architecture.
+3. Reuse existing functionality.
+4. Do not rewrite working code unnecessarily.
+5. Do not create duplicate utilities.
+6. Do not introduce dependencies without a reason.
+7. Keep modules small.
+8. Keep business logic out of UI components.
+9. Keep provider-specific logic isolated.
+10. Keep database logic isolated.
+11. Validate all external input.
+12. Validate LLM output.
+13. Write tests for important logic.
+14. Update documentation after architectural changes.
+
+If an existing implementation works, improve it rather than replacing it.
+
+---
+
+# 39. Definition of Done
+
+The project is considered MVP-complete only when this complete flow works:
+
+1. User creates profile.
+2. User selects niche.
+3. System researches current information.
+4. System identifies relevant trends.
+5. System calculates personalized opportunities.
+6. Dashboard displays opportunities.
+7. User selects an opportunity.
+8. Agent creates a content brief.
+9. Agent generates LinkedIn/X/blog versions.
+10. Critic evaluates the content.
+11. Agent improves weak content.
+12. Final content is stored.
+13. User can view content history.
+14. User can enter performance metrics.
+15. Analytics calculates performance.
+16. System generates creator insights.
+17. Insights are stored in memory.
+18. Future recommendations use those insights.
+19. Agent chat can answer questions using actual user data.
+20. Tests pass.
+21. Docker setup works.
+22. README explains the complete system.
+
+The entire product should demonstrate this loop:
+
+USER → DATA → INTELLIGENCE → RECOMMENDATION → AGENT → CONTENT → PERFORMANCE → LEARNING
+
+---
+
+# 40. First Action
+
+Do NOT immediately generate the entire project.
+
+First:
+
+1. Inspect the repository.
+2. Determine whether it is empty or contains existing code.
+3. Create a concise implementation plan.
+4. Identify required dependencies.
+5. Create the initial architecture.
+6. Implement Phase 1 only.
+7. Verify it works.
+8. Continue phase-by-phase.
+
+At every stage, prioritize a **working system over large amounts of code**.
+
+Do not ask unnecessary questions.
+
+If a reasonable technical decision can be made from this specification, make the decision yourself and proceed.
+
+When there are multiple valid options, choose the simplest production-quality option.
+
+The final system should be something a professional engineer could understand, run locally, test, extend, and confidently demonstrate in a technical interview.
