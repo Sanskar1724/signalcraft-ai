@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64">
+  <defs>
+    <linearGradient id="sc-tile-h" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(2,2) scale(0.9375)">
+    <rect x="0" y="0" width="60" height="60" rx="16" fill="url(#sc-tile-h)"/>
+    <path d="M9 36 L19 36 L24 20 L30 46 L36 28 L39 36 L51 36" fill="none" stroke="#04302b" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="39" cy="36" r="3.6" fill="#04302b"/>
+    <circle cx="39" cy="36" r="6.4" fill="none" stroke="#04302b" stroke-opacity="0.45" stroke-width="1.6"/>
+  </g>
+  <text x="72" y="40" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="800" letter-spacing="-0.5" fill="#F2F4F7">Signal<tspan fill="#2dd4bf">Craft</tspan></text>
+</svg>
