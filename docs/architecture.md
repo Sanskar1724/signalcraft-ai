@@ -41,5 +41,4 @@ External providers      LLM (OpenRouter→OpenAI-compat→Mock fallback chain)
 - Every draft is built from a validated `ContentBrief` (§13) + evidence
   titles (§33); platform output follows `content/rules.py` config (§14).
 - Bounded agent: 8 tool calls, 60s budget, 1 revise loop (§35).
-- `streamlit app.py` remains as a local dashboard but is deprecated in favor
-  of `apps/web`.
+- Local runs use `make api` + `make web`; deploy per `docs/deployment.md`.

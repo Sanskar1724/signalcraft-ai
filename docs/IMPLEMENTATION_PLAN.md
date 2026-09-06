@@ -15,7 +15,7 @@ Constitution: `prompt1.txt` (40 sections). Phase order per §28.
 | 9 critic | §15, §32 | 10-check rubric, `QUALITY_THRESHOLD`/`MAX_RETRIES`, fallback never crashes | done |
 | 10 memory | §16 | 8 kinds, feedback, semantic recall (pgvector-ready) | done |
 | 11 analytics | §17-§18 | manual entry, Content Performance Score, deterministic insights → memory | done |
-| 12 dashboard | §19, §31 | Next.js 9 pages + typed client; Streamlit kept as deprecated local UI | done |
+| 12 dashboard | §19, §31 | Next.js 9 pages + typed client | done |
 | 13 agent chat | §12, §20 | orchestrator, 9 named tools, budgets, traces, request IDs | done |
 | 14 testing | §26 | 27 pytest (unit/integration/API/agent) + `tsc` + `next build` | done |
 | 15 docker | §3, §39 | Dockerfiles + compose (daemon not verifiable here — noted) | done |
