@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 venv/
 .env
+apps/web/.env
+*.local
 data/*.db
 data/*.db-*
 .streamlit/secrets.toml
