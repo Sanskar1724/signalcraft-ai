@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from .db import get_conn
 
+__all__ = ["VALID_KINDS", "remember", "recall", "get_memory_boost",
+           "semantic_recall", "remember_feedback", "learn_from_performance"]
+
 VALID_KINDS = {"successful_topic", "weak_topic", "successful_hook", "weak_hook",
                "preferred_format", "audience_pattern", "user_feedback",
                "strategy_insight"}

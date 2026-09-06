@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 
 from .db import get_conn
 
+__all__ = ["Profile", "DEFAULT_PROFILE", "get_profile", "update_profile",
+           "seed_default_profile"]
+
 DEFAULT_PROFILE = {
     "niche": "AI + Data Engineering",
     "expertise": "LLMs, AI agents, PySpark, open source",
@@ -59,8 +62,8 @@ def get_profile(user_id: int = 1) -> Profile:
             topics=json.loads(row["topics"] or "[]"),
             avoid_topics=json.loads(row["avoid_topics"] or "[]"),
             style_notes=row["style_notes"] or "",
-            content_preferences=row["content_preferences"] or "" if "content_preferences" in row.keys() else "",
-            posting_preferences=row["posting_preferences"] or "" if "posting_preferences" in row.keys() else "",
+            content_preferences=row["content_preferences"] or "",
+            posting_preferences=row["posting_preferences"] or "",
         )
     finally:
         conn.close()

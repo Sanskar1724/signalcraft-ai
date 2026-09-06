@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from .db import get_conn
 
+__all__ = ["schedule", "upcoming"]
+
 
 def schedule(user_id: int, platform: str, scheduled_for: str,
              content_id: int | None = None, notes: str = "") -> dict:

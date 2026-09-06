@@ -6,6 +6,8 @@ from .opportunities import build_opportunities
 from .research import collect_and_store
 from .trends import detect_trends
 
+__all__ = ["run_refresh"]
+
 
 def run_refresh(user_id: int = 1, limit: int = 20, use_live: bool = True) -> dict:
     research = collect_and_store(limit=limit, user_id=user_id, use_live=use_live)

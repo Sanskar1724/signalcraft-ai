@@ -15,8 +15,9 @@ from .observability import Trace
 from .opportunities import list_opportunities
 from .profiles import get_profile
 from .research import list_recent, search
-from .security import Budget, check_rate_limit, validate_request
-from .security import MAX_TOOL_CALLS as _MAX_TOOL_CALLS
+from .security import MAX_TOOL_CALLS, Budget, check_rate_limit, validate_request
+
+__all__ = ["classify_intent", "run"]
 
 
 def classify_intent(text: str) -> str:
@@ -61,8 +62,8 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
         nonlocal calls
         calls += 1
         budget.check()
-        if calls > _MAX_TOOL_CALLS:
-            raise RuntimeError(f"tool budget exceeded (max {_MAX_TOOL_CALLS})")
+        if calls > MAX_TOOL_CALLS:
+            raise RuntimeError(f"tool budget exceeded (max {MAX_TOOL_CALLS})")
         trace.add(f"tool:{name}", detail)
 
     if intent == "analyze":

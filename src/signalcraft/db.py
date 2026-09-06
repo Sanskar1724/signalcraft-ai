@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Iterator
 
 from .config import settings
+
+__all__ = ["SCHEMA", "get_conn", "init_db"]
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;

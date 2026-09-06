@@ -9,6 +9,8 @@ from .memory import get_memory_boost
 from .profiles import get_profile
 from .trends import detect_trends
 
+__all__ = ["build_opportunities", "list_opportunities"]
+
 PLATFORM_BY_SCORE = [(80, "LinkedIn + X"), (55, "LinkedIn"), (0, "Blog")]
 
 

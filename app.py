@@ -14,9 +14,9 @@ from signalcraft.agent import run as agent_run  # noqa: E402
 from signalcraft.content.generator import generate_content, list_content  # noqa: E402
 from signalcraft.db import init_db  # noqa: E402
 from signalcraft.memory import learn_from_performance, recall, remember_feedback  # noqa: E402
-from signalcraft.opportunities import build_opportunities, list_opportunities  # noqa: E402
+from signalcraft.opportunities import list_opportunities  # noqa: E402
 from signalcraft.profiles import get_profile, seed_default_profile, update_profile  # noqa: E402
-from signalcraft.research import collect_and_store, list_recent  # noqa: E402
+from signalcraft.research import list_recent  # noqa: E402
 from signalcraft.trends import detect_trends  # noqa: E402
 
 st.set_page_config(page_title="SignalCraft AI", page_icon="◉", layout="wide")

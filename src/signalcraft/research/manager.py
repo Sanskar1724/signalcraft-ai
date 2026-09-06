@@ -30,7 +30,6 @@ def collect_and_store(query: str = "", limit: int = 20, user_id: int = 1,
                     seen[key] = it
         except Exception as e:
             log.warning("source %s failed: %s", getattr(src, "name", "?"), e)
-    stored = []
     conn = get_conn()
     try:
         for it in list(seen.values())[:limit]:

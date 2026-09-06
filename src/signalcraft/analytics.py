@@ -5,6 +5,8 @@ from statistics import mean
 
 from .db import get_conn
 
+__all__ = ["engagement_rate", "record_performance", "summary", "insights"]
+
 
 def engagement_rate(impressions: int, likes: int, comments: int,
                     shares: int, saves: int, clicks: int = 0) -> float:

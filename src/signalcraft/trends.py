@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 from .db import get_conn
 from .profiles import get_profile
 
+__all__ = ["detect_trends"]
+
 STOP = {"the", "and", "for", "with", "from", "that", "this", "into", "using",
         "how", "are", "was", "were", "have", "has", "will", "over", "more"}
 
@@ -62,6 +64,8 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
     if not research:
         return []
 
+    by_id = {r["id"]: r for r in research}
+
     # candidate topics: most common bigrams + profile topics present in research
     counter: Counter[str] = Counter()
     evidence: dict[str, list[int]] = {}
@@ -77,7 +81,7 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
 
     scored = []
     for topic, mentions in counter.most_common(top_n * 3):
-        sup = [r for r in research if r["id"] in evidence[topic][:5]]
+        sup = [by_id[i] for i in evidence[topic][:5] if i in by_id]
         fresh = sum(_freshness(r["published_at"]) for r in sup) / max(1, len(sup))
         growth = min(1.0, mentions / 5.0)
         tset = set(topic.split())
