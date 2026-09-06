@@ -1,5 +1,7 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
+export const apiBase = API;
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const { authHeaders } = await import("./auth");
   const res = await fetch(`${API}${path}`, {

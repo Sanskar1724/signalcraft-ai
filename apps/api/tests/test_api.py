@@ -16,6 +16,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "api_key", "")
     monkeypatch.setattr(config.settings, "openrouter_api_key", "")
     monkeypatch.setattr(config.settings, "openai_api_key", "")
+    monkeypatch.setattr(config.settings, "google_client_id", "")
+    monkeypatch.setattr(config.settings, "google_client_secret", "")
     db.init_db(tmp_path / "api.db")
     from apps.api.app.main import app
     from fastapi.testclient import TestClient
@@ -140,10 +142,18 @@ def test_preferences_validation(client):
     assert client.put("/api/preferences", json={"creativity": 9}).json()["creativity"] == 1.0
 
 
-def test_google_boundary_and_status_flow(client):
+def test_google_boundary_and_status_flow(client, monkeypatch):
+    from signalcraft import config
     st = client.get("/api/auth/google/status").json()
     assert st["configured"] is False
     assert client.get("/api/auth/google/start").status_code == 501
+    monkeypatch.setattr(config.settings, "google_client_id", "test-id")
+    monkeypatch.setattr(config.settings, "google_client_secret", "test-secret")
+    assert client.get("/api/auth/google/status").json()["configured"] is True
+    r = client.get("/api/auth/google/start", follow_redirects=False)
+    assert r.status_code == 302 and "accounts.google.com" in r.headers["location"]
+    bad = client.get("/api/auth/google/callback?code=x&state=bad", follow_redirects=False)
+    assert bad.status_code == 302 and "/login?error=" in bad.headers["location"]
     assert client.get("/api/trends", params={"sort": "rising"}).status_code == 200
     assert client.get("/api/trends", params={"sort": "latest"}).status_code == 200
     client.post("/api/research", json={"limit": 5, "use_live": False})

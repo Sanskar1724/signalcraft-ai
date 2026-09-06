@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL DEFAULT 'Creator',
     email TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT 'email',
+    provider_sub TEXT NOT NULL DEFAULT '',
     onboarding_status TEXT NOT NULL DEFAULT 'NOT_STARTED',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -81,6 +83,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS oauth_states (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    state TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -302,6 +310,8 @@ EXTRA_COLUMNS: dict[str, list[str]] = {
     "calendar_items": ["uuid TEXT NOT NULL DEFAULT ''"],
     "llm_requests": ["uuid TEXT NOT NULL DEFAULT ''"],
     "users": ["uuid TEXT NOT NULL DEFAULT ''", "password_hash TEXT NOT NULL DEFAULT ''",
+              "provider TEXT NOT NULL DEFAULT 'email'",
+              "provider_sub TEXT NOT NULL DEFAULT ''",
               "onboarding_status TEXT NOT NULL DEFAULT 'NOT_STARTED'"],
     "profiles": [
         "uuid TEXT NOT NULL DEFAULT ''", "role TEXT NOT NULL DEFAULT ''",

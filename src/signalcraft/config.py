@@ -45,6 +45,8 @@ class Settings:
     cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3001")
+    backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8001")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")

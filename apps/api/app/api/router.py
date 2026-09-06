@@ -1,6 +1,8 @@
 """REST routes (§23, §30-§32). All errors use the envelope from core.errors."""
 from __future__ import annotations
 
+import urllib.parse
+
 from fastapi import APIRouter, Depends, Header
 
 from ..analytics.service import insights, summary
@@ -40,15 +42,33 @@ async def google_status() -> dict:
 
 
 @public.get("/auth/google/start")
-async def google_start() -> dict:
-    from fastapi import HTTPException
-    from signalcraft.config import settings as _s
-    if not (_s.google_client_id and _s.google_client_secret):
+async def google_start():
+    from fastapi.responses import RedirectResponse
+    from signalcraft import oauth as _oauth
+    if not _oauth.is_configured():
+        from fastapi import HTTPException
         raise HTTPException(status_code=501, detail={
             "code": "oauth_not_configured",
             "message": "Google sign-in needs GOOGLE_CLIENT_ID/SECRET. See docs/development.md.",
         })
-    raise HTTPException(status_code=501, detail="Google OAuth callback not implemented yet")
+    return RedirectResponse(_oauth.start_login(), status_code=302)
+
+
+@public.get("/auth/google/callback")
+async def google_callback(code: str | None = None, state: str | None = None,
+                          error: str | None = None):
+    from fastapi.responses import RedirectResponse
+    from signalcraft import oauth as _oauth
+    from signalcraft.config import settings as _s
+    front = _s.frontend_url.rstrip("/")
+    if error:
+        return RedirectResponse(f"{front}/login?error=google_{error}", status_code=302)
+    try:
+        user, token = _oauth.handle_callback(code or "", state or "")
+    except ValueError as e:
+        return RedirectResponse(
+            f"{front}/login?error={urllib.parse.quote(str(e)[:80])}", status_code=302)
+    return RedirectResponse(f"{front}/auth/callback?token={token}", status_code=302)
 
 
 @router.post("/auth/logout")

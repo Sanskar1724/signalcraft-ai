@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, apiBase } from "../lib/api";
 
 export function GoogleIcon() {
   return (
@@ -28,7 +28,7 @@ export function GoogleButton({ mode }: { mode: string }) {
 
   function click() {
     if (state === "ready") {
-      window.location.href = "/api/auth/google/start";
+      window.location.href = `${apiBase}/api/auth/google/start`;
     } else {
       setNote("Google sign-in isn't configured on this server yet — use email, or ask the admin to set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. Nothing was faked.");
     }

@@ -13,7 +13,7 @@ from .db import get_conn, new_uuid
 __all__ = ["hash_password", "verify_password", "create_user", "authenticate",
            "create_session", "get_user_by_token", "destroy_session",
            "get_user", "set_onboarding_status", "change_password",
-           "ONBOARDING_STATES"]
+           "create_oauth_user", "ONBOARDING_STATES"]
 
 ONBOARDING_STATES = ("NOT_STARTED", "IN_PROGRESS", "COMPLETED")
 _ITERS = 200_000
@@ -104,7 +104,6 @@ def destroy_session(token: str) -> None:
     finally:
         conn.close()
 
-
 def change_password(user_id: int, current: str, new: str) -> None:
     conn = get_conn()
     try:
@@ -118,6 +117,48 @@ def change_password(user_id: int, current: str, new: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def create_oauth_user(email: str, name: str = "", provider: str = "google",
+                      sub: str = "") -> dict:
+    """Find-or-create for OAuth logins. Matches provider+sub first (stable),
+    then links by verified email, else creates an OAuth-only account
+    (empty password_hash → password login impossible)."""
+    email = email.strip().lower()
+    if "@" not in email:
+        raise ValueError("oauth account has no valid email")
+    conn = get_conn()
+    try:
+        row = None
+        if sub:
+            row = conn.execute(
+                "SELECT id FROM users WHERE provider=? AND provider_sub=?",
+                (provider, sub)).fetchone()
+        if row is None:
+            row = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+            if row is not None:
+                conn.execute("UPDATE users SET provider=?, provider_sub=? WHERE id=?",
+                             (provider, sub, row["id"]))
+                conn.commit()
+        if row is None:
+            cur = conn.execute(
+                "INSERT INTO users (uuid, name, email, password_hash, provider,"
+                " provider_sub, onboarding_status)"
+                " VALUES (?,?,?,?,?,?,'IN_PROGRESS')",
+                (new_uuid(), (name or email.split("@")[0]).strip(),
+                 email, "", provider, sub),
+            )
+            uid = cur.lastrowid
+            conn.execute("INSERT OR IGNORE INTO profiles (uuid, user_id) VALUES (?, ?)",
+                         (new_uuid(), uid))
+            conn.execute("INSERT OR IGNORE INTO preferences (uuid, user_id) VALUES (?, ?)",
+                         (new_uuid(), uid))
+            conn.commit()
+            row = {"id": uid}
+        uid = row["id"]
+    finally:
+        conn.close()
+    return get_user(uid)
 
 
 def get_user(user_id: int) -> dict:
