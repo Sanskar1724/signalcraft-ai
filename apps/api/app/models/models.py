@@ -53,6 +53,7 @@ class Opportunity(BaseModel):
     platform: str = ""
     score: float = 0
     confidence: float = 0
+    research_refs: str = "[]"
 
 
 class ContentItem(BaseModel):

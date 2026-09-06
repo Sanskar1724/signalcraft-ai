@@ -21,6 +21,7 @@ from .critic import critique
 from .platforms import format_blog, format_linkedin, format_x
 
 MAX_BODY = 6000
+LENGTH_TOKENS = {"short": 250, "medium": 450, "long": 750}
 
 
 def _evidence_titles(opp: dict) -> list[str]:
@@ -66,9 +67,10 @@ def build_brief(profile, opp: dict, evidence_titles: list[str],
     )
 
 
-def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str) -> str:
+def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str,
+                   max_tokens: int = 450) -> str:
     prompt = render("content_strategy", brief=brief.model_dump_json(), tone=tone or "clear")
-    core = gateway.generate(prompt, task="generation", max_tokens=400).strip()
+    core = gateway.generate(prompt, task="generation", max_tokens=max_tokens).strip()
     # Strip mock prefix so UI reads clean; keep provenance in version row instead.
     if core.startswith("[Mock draft"):
         core = core.split("]", 1)[-1].strip()
@@ -77,7 +79,10 @@ def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str) -> str:
 
 def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                      user_id: int = 1, gateway: LLMGateway | None = None,
-                     trace: Trace | None = None) -> dict:
+                     trace: Trace | None = None, tone: str | None = None,
+                     length: str = "medium") -> dict:
+    if length not in LENGTH_TOKENS:
+        raise ValueError(f"invalid length: {length}")
     gateway = gateway or LLMGateway()
     profile = get_profile(user_id)
     conn = get_conn()
@@ -97,11 +102,13 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
 
     evidence = _evidence_titles(opp)
     from ..preferences import get_preferences
-    brief = build_brief(profile, {**opp, "platform": platform}, evidence,
-                        get_preferences(user_id))
+    prefs = get_preferences(user_id)
+    if tone:
+        prefs = {**prefs, "tone": tone}
+    brief = build_brief(profile, {**opp, "platform": platform}, evidence, prefs)
     trace.add("brief", brief.model_dump())
 
-    core = _strategy_text(gateway, brief, profile.tone)
+    core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length])
     trace.add("strategy", core[:200])
 
     fmt = {"LinkedIn": format_linkedin, "X": format_x, "Blog": format_blog}.get(platform, format_linkedin)

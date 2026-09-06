@@ -1,15 +1,28 @@
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
+import { Toaster } from "../components/fx";
 import "./globals.css";
 
+const inter = Inter({ subsets: ["latin"], display: "swap" });
+
 export const metadata = {
-  title: "SignalCraft AI — Your personal AI content strategist",
-  description: "Personal AI content intelligence: research, trends, opportunities, drafts, analytics and learning.",
+  title: "SignalCraft AI — Your Personal AI Content Strategist",
+  description:
+    "SignalCraft understands your audience, tracks what is happening right now, finds your best content opportunities, and turns them into content that sounds like you.",
+  openGraph: {
+    title: "SignalCraft AI — Your Personal AI Content Strategist",
+    description: "Research what matters. Create what resonates. Learn what works.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={inter.className}>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

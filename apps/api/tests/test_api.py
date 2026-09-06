@@ -138,3 +138,17 @@ def test_onboarding_journey(client):
 def test_preferences_validation(client):
     assert client.put("/api/preferences", json={"creativity": 0.2}).json()["creativity"] == 0.2
     assert client.put("/api/preferences", json={"creativity": 9}).json()["creativity"] == 1.0
+
+
+def test_google_boundary_and_status_flow(client):
+    st = client.get("/api/auth/google/status").json()
+    assert st["configured"] is False
+    assert client.get("/api/auth/google/start").status_code == 501
+    assert client.get("/api/trends", params={"sort": "rising"}).status_code == 200
+    assert client.get("/api/trends", params={"sort": "latest"}).status_code == 200
+    client.post("/api/research", json={"limit": 5, "use_live": False})
+    opps = client.get("/api/opportunities", params={"refresh": True}).json()
+    cid = client.post("/api/content/generate",
+                      json={"opportunity_id": opps[0]["id"], "platform": "Blog"}).json()["content"]["id"]
+    assert client.put(f"/api/content/{cid}/status", json={"status": "published"}).json()["status"] == "published"
+    assert client.put(f"/api/content/{cid}/status", json={"status": "nope"}).status_code == 400

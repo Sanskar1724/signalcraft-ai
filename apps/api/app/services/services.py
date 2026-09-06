@@ -140,8 +140,10 @@ class opportunity:
 
 class content:
     @staticmethod
-    def generate(opportunity_id: int, platform: str = "LinkedIn", user_id: int = 1) -> dict:
-        res = _generate(opportunity_id, platform=platform, user_id=user_id)
+    def generate(opportunity_id: int, platform: str = "LinkedIn", user_id: int = 1,
+                 tone: str | None = None, length: str = "medium") -> dict:
+        res = _generate(opportunity_id, platform=platform, user_id=user_id,
+                        tone=tone, length=length)
         return {"content": res["content"], "critique": res["critique"],
                 "brief": res["brief"].model_dump()}
 
@@ -188,6 +190,22 @@ class content:
     def history(user_id: int = 1, limit: int = 50, offset: int = 0,
                 platform: str | None = None) -> list[dict]:
         return list_content(user_id, limit, offset, platform)
+
+    @staticmethod
+    def set_status(content_id: int, user_id: int = 1, status: str = "draft") -> dict:
+        if status not in {"draft", "ready", "published", "archived"}:
+            raise ValueError(f"invalid status: {status}")
+        from signalcraft.db import get_conn
+        from ..repositories.content import get_content_detail
+        get_content_detail(content_id, user_id)  # 404-style guard
+        conn = get_conn()
+        try:
+            conn.execute("UPDATE content SET status=? WHERE id=? AND user_id=?",
+                         (status, content_id, user_id))
+            conn.commit()
+        finally:
+            conn.close()
+        return get_content_detail(content_id, user_id)
 
     @staticmethod
     def log_performance(content_id: int, user_id: int = 1, **metrics) -> dict:

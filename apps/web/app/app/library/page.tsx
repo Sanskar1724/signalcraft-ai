@@ -8,6 +8,7 @@ import { Card, CopyButton, Empty, Loading, Modal, Pill, Quality, Tabs, useApi } 
 export default function LibraryPage() {
   const lib = useApi(() => api.library());
   const [platform, setPlatform] = useState("All");
+  const [status, setStatus] = useState("All");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ContentDetail | null>(null);
@@ -17,6 +18,7 @@ export default function LibraryPage() {
   const items = (lib.data ?? []).filter(
     (c) =>
       (platform === "All" || c.platform === platform) &&
+      (status === "All" || c.status === status) &&
       (!query || (c.title + (c as ContentItem & { topic?: string }).topic).toLowerCase().includes(query.toLowerCase()))
   );
 
@@ -48,6 +50,10 @@ export default function LibraryPage() {
         </div>
         <Tabs tabs={["All", "LinkedIn", "X", "Blog"]} active={platform} onChange={setPlatform} />
       </div>
+      <div className="row" style={{ marginTop: 8 }}>
+        <span className="lbl">Status</span>
+        <Tabs tabs={["All", "draft", "ready", "published", "archived"]} active={status} onChange={setStatus} />
+      </div>
       {items.length === 0 && <Empty text="Nothing matches — clear the filters." />}
       {items.map((c) => (
         <Card key={c.id}>
@@ -70,6 +76,19 @@ export default function LibraryPage() {
               <Quality score={detail.quality_score} />
               <span style={{ flex: 1 }} />
               <CopyButton text={detail.body} />
+            </div>
+            <div className="row" style={{ marginTop: 8 }}>
+              <span className="lbl">Move to</span>
+              {["draft", "ready", "published", "archived"].map((s) => (
+                <button key={s} className="btn ghost small"
+                  onClick={async () => {
+                    await api.setStatus(detail.id, s);
+                    setDetail(await api.detail(detail.id));
+                    lib.reload();
+                  }}>
+                  {s}
+                </button>
+              ))}
             </div>
             <pre className="draft">{detail.body}</pre>
             <h2>Versions ({detail.versions.length})</h2>

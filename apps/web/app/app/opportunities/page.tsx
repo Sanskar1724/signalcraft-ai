@@ -5,6 +5,15 @@ import { useState } from "react";
 import { api } from "../../../lib/api";
 import { Card, Empty, Loading, Pill, ScoreBar, Tabs, useApi } from "../../../components/ui";
 
+function sourcesOf(o: { research_refs?: string }): number {
+  try {
+    const v = JSON.parse(o.research_refs ?? "[]");
+    return Array.isArray(v) ? v.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default function OpportunitiesPage() {
   const { data, error, busy } = useApi(() => api.opportunities());
   const [plat, setPlat] = useState("All");
@@ -43,8 +52,9 @@ export default function OpportunitiesPage() {
             <Pill>audience {o.audience_fit}</Pill>
             <Pill>competition {o.competition}</Pill>
             <Pill kind={o.platform.split(" ")[0]}>{o.platform}</Pill>
+            <Pill>{sourcesOf(o)} sources</Pill>
             <span style={{ flex: 1 }} />
-            <Link href={`/create?opp=${o.id}`} className="btn small" style={{ textDecoration: "none" }}>Use in Create</Link>
+            <Link href={`/app/create?opp=${o.id}`} className="btn small" style={{ textDecoration: "none" }}>Create</Link>
           </div>
         </Card>
       ))}

@@ -12,7 +12,7 @@ from ..repositories.content import get_content_detail
 from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, LoginIn,
                                OnboardingStep, PasswordIn, PerformanceIn,
                                PreferencesUpdate, ProfileUpdate, ResearchRun,
-                               ReviseIn, ScheduleIn, SignupIn)
+                               ReviseIn, ScheduleIn, SignupIn, StatusIn)
 from ..services.services import (agent, content, context, identity, onboarding,
                                  opportunity, preferences, profile, research,
                                  trend)
@@ -29,6 +29,26 @@ async def post_signup(body: SignupIn) -> dict:
 @public.post("/auth/login")
 async def post_login(body: LoginIn) -> dict:
     return identity.login(body.email, body.password)
+
+
+@public.get("/auth/google/status")
+async def google_status() -> dict:
+    """Clean OAuth boundary (§27): reports configuration, never fakes auth."""
+    from signalcraft.config import settings as _s
+    return {"configured": bool(_s.google_client_id and _s.google_client_secret),
+            "start_url": "/api/auth/google/start"}
+
+
+@public.get("/auth/google/start")
+async def google_start() -> dict:
+    from fastapi import HTTPException
+    from signalcraft.config import settings as _s
+    if not (_s.google_client_id and _s.google_client_secret):
+        raise HTTPException(status_code=501, detail={
+            "code": "oauth_not_configured",
+            "message": "Google sign-in needs GOOGLE_CLIENT_ID/SECRET. See docs/development.md.",
+        })
+    raise HTTPException(status_code=501, detail="Google OAuth callback not implemented yet")
 
 
 @router.post("/auth/logout")
@@ -96,13 +116,17 @@ async def put_profile(body: ProfileUpdate, user_id: int = Depends(get_user_id)) 
 
 
 @router.get("/trends", response_model=list[TrendSignal])
-async def get_trends(top_n: int = 10, user_id: int = Depends(get_user_id)) -> list:
-    return [
+async def get_trends(top_n: int = 10, sort: str = "for_you",
+                     user_id: int = Depends(get_user_id)) -> list:
+    rows = [
         {k: t.get(k, 0) if k != "topic" else t["topic"]
          for k in ("topic", "freshness", "growth", "relevance", "source_momentum",
                    "novelty", "audience_fit", "competition", "trend_score")}
-        for t in trend.list(user_id, top_n)
+        for t in trend.list(user_id, top_n * 2)
     ]
+    key = {"rising": "growth", "latest": "freshness"}.get(sort, "trend_score")
+    rows.sort(key=lambda t: t[key], reverse=True)
+    return rows[:top_n]
 
 
 @router.get("/opportunities", response_model=list[Opportunity])
@@ -120,7 +144,8 @@ async def post_research(body: ResearchRun, user_id: int = Depends(get_user_id)) 
 
 @router.post("/content/generate")
 async def post_generate(body: GenerateIn, user_id: int = Depends(get_user_id)) -> dict:
-    return content.generate(body.opportunity_id, body.platform, user_id)
+    return content.generate(body.opportunity_id, body.platform, user_id,
+                            tone=body.tone, length=body.length)
 
 
 @router.post("/content/critique")
@@ -142,6 +167,12 @@ async def get_content(limit: int = 50, offset: int = 0, platform: str | None = N
 @router.get("/content/{content_id}", response_model=ContentDetail)
 async def get_content_one(content_id: int, user_id: int = Depends(get_user_id)) -> dict:
     return get_content_detail(content_id, user_id)
+
+
+@router.put("/content/{content_id}/status")
+async def put_content_status(content_id: int, body: StatusIn,
+                             user_id: int = Depends(get_user_id)) -> dict:
+    return content.set_status(content_id, user_id, body.status)
 
 
 @router.post("/content/{content_id}/performance", response_model=Performance)

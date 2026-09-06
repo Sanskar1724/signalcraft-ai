@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../components/Logo";
+import { GoogleButton } from "../../components/GoogleButton";
+import SignalField from "../../components/SignalField";
 import { api } from "../../lib/api";
 import { setToken } from "../../lib/auth";
 
@@ -29,23 +31,40 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="centerwrap">
-      <p><Link href="/" style={{ color: "var(--muted)", textDecoration: "none" }}><Logo size={30} /></Link></p>
-      <h1>Welcome back</h1>
-      <p className="sub">Log in to your content intelligence.</p>
-      <div className="card">
-        <label className="field">Email
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-        </label>
-        <label className="field" style={{ marginTop: 10 }}>Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()} />
-        </label>
-        <p><button className="btn" onClick={submit} disabled={busy || !email || !password}>
-          {busy ? "Logging in…" : "Log in"}
-        </button></p>
-        {error && <p className="error">{error}</p>}
-        <p className="muted">New here? <Link href="/signup" style={{ color: "var(--accent2)" }}>Create an account</Link></p>
+    <div className="authsplit">
+      <div className="authstory">
+        <SignalField />
+        <div style={{ position: "relative" }}>
+          <p><Logo size={36} /></p>
+          <h2 className="landh">AI intelligence<br />for your content.</h2>
+          <p className="muted">Research what matters. Create what resonates. Learn what works.</p>
+          <div className="signalstrip" style={{ justifyContent: "flex-start" }}>
+            <span className="pill">Trends for you</span>
+            <span className="pill">Brief-led drafts</span>
+            <span className="pill">Learning loop</span>
+          </div>
+        </div>
+      </div>
+      <div className="authform">
+        <div>
+          <h1>Welcome back</h1>
+          <p className="sub">Log in to your content intelligence.</p>
+          <label className="field">Email
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+          </label>
+          <label className="field" style={{ marginTop: 10 }}>Password
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              onKeyDown={(e) => e.key === "Enter" && submit()} />
+          </label>
+          <p><button className="btn" style={{ width: "100%" }} onClick={submit} disabled={busy || !email || !password}>
+            {busy ? "Logging in…" : "Continue"}
+          </button></p>
+          {error && <p className="error">{error}</p>}
+          <div className="or">or</div>
+          <GoogleButton mode="login" />
+          <p className="muted">Don&apos;t have an account? <Link href="/signup" style={{ color: "var(--accent)" }}>Sign up</Link></p>
+        </div>
       </div>
     </div>
   );

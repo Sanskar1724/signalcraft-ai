@@ -33,6 +33,8 @@ class ResearchRun(BaseModel):
 class GenerateIn(BaseModel):
     opportunity_id: int
     platform: str = "LinkedIn"
+    tone: str | None = None
+    length: str = "medium"
 
 
 class CritiqueIn(BaseModel):
@@ -43,6 +45,10 @@ class CritiqueIn(BaseModel):
 
 class ReviseIn(BaseModel):
     content_id: int
+
+
+class StatusIn(BaseModel):
+    status: str = "draft"
 
 
 class PerformanceIn(BaseModel):

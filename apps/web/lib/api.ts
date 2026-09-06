@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const { authHeaders } = await import("./auth");
@@ -18,7 +18,8 @@ export const api = {
   profile: () => req<Profile>("/api/profile"),
   updateProfile: (p: Partial<Profile>) =>
     req<Profile>("/api/profile", { method: "PUT", body: JSON.stringify(p) }),
-  trends: (top_n = 10) => req<TrendSignal[]>(`/api/trends?top_n=${top_n}`),
+  trends: (top_n = 10, sort: string = "for_you") =>
+    req<TrendSignal[]>(`/api/trends?top_n=${top_n}&sort=${sort}`),
   opportunities: (refresh = false) =>
     req<Opportunity[]>(`/api/opportunities${refresh ? "?refresh=true" : ""}`),
   runResearch: (limit = 20) =>
@@ -26,10 +27,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ limit, use_live: true }),
     }),
-  generate: (opportunity_id: number, platform: string) =>
+  generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string }) =>
     req<GenerateResult>("/api/content/generate", {
       method: "POST",
-      body: JSON.stringify({ opportunity_id, platform }),
+      body: JSON.stringify({ opportunity_id, platform, ...opts }),
     }),
   critique: (body: string, platform: string) =>
     req<Critique>("/api/content/critique", {
@@ -37,12 +38,14 @@ export const api = {
       body: JSON.stringify({ body, platform }),
     }),
   revise: (content_id: number) =>
-    req<GenerateResult>("/api/content/revise", {
+    req<ReviseResult>("/api/content/revise", {
       method: "POST",
       body: JSON.stringify({ content_id }),
     }),
   library: () => req<ContentItem[]>("/api/content?limit=50"),
   detail: (id: number) => req<ContentDetail>(`/api/content/${id}`),
+  setStatus: (id: number, status: string) =>
+    req(`/api/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
   logPerformance: (id: number, m: PerformanceInput) =>
     req(`/api/content/${id}/performance`, { method: "POST", body: JSON.stringify(m) }),
   analytics: () => req<AnalyticsSummary>("/api/analytics"),
@@ -67,7 +70,7 @@ export const api = {
   logout: () => req("/api/auth/logout", { method: "POST" }),
   changePassword: (current: string, next: string) =>
     req("/api/auth/password", { method: "POST", body: JSON.stringify({ current, new: next }) }),  me: () => req<{ user: { name: string; email: string }; onboarding_status: string }>("/api/auth/me"),
-  onboardStatus: () => req<{ status: string; name_set: boolean; niche_set: boolean }>("/api/onboarding/status"),
+  googleStatus: () => req<{ configured: boolean }>("/api/auth/google/status"),  onboardStatus: () => req<{ status: string; name_set: boolean; niche_set: boolean }>("/api/onboarding/status"),
   onboardStep: (step: Record<string, unknown>) =>
     req<{ status: string; name_set: boolean; niche_set: boolean }>("/api/onboarding", {
       method: "POST",
@@ -132,6 +135,7 @@ export interface Opportunity {
   platform: string;
   score: number;
   confidence: number;
+  research_refs?: string;
 }
 
 export interface ContentItem {
@@ -161,6 +165,13 @@ export interface Critique {
   suggestion: string;
   scores: Record<string, number>;
   issues: string[];
+}
+
+export interface ReviseResult {
+  content_id: number;
+  version: number;
+  critique: Critique;
+  body: string;
 }
 
 export interface PerformanceInput {
