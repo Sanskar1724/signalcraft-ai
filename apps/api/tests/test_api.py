@@ -30,13 +30,14 @@ def test_health(client):
 
 
 def test_cors_preflight(client):
+    from signalcraft import config
+    origin = [o.strip() for o in config.settings.cors_origins.split(",") if o.strip()][0]
     r = client.options(
         "/api/trends",
-        headers={"Origin": "http://localhost:3000",
-                 "Access-Control-Request-Method": "GET"},
+        headers={"Origin": origin, "Access-Control-Request-Method": "GET"},
     )
     assert r.status_code == 200
-    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert r.headers.get("access-control-allow-origin") == origin
 
 
 def test_profile_roundtrip(client):
