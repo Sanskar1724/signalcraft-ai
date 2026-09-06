@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="og-glow" cx="0.22" cy="0.4" r="0.65">
+      <stop offset="0" stop-color="#2dd4bf" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="og-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0A0C10"/>
+  <rect width="1200" height="630" fill="url(#og-glow)"/>
+  <g transform="translate(120,235) scale(2.8125)">
+    <rect x="0" y="0" width="60" height="60" rx="16" fill="url(#og-tile)"/>
+    <path d="M9 36 L19 36 L24 20 L30 46 L36 28 L39 36 L51 36" fill="none" stroke="#04302b" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="39" cy="36" r="3.6" fill="#04302b"/>
+  </g>
+  <text x="330" y="320" font-family="Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="-1" fill="#F2F4F7">Signal<tspan fill="#2dd4bf">Craft</tspan> AI</text>
+  <text x="332" y="375" font-family="Arial, sans-serif" font-size="30" fill="#9AA3B2">Research what matters. Create what resonates.</text>
+  <text x="332" y="418" font-family="Arial, sans-serif" font-size="30" fill="#9AA3B2">Learn what works.</text>
+</svg>
