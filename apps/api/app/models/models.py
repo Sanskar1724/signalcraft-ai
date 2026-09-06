@@ -6,6 +6,10 @@ from pydantic import BaseModel
 
 class ProfileOut(BaseModel):
     user_id: int = 1
+    name: str = "Creator"
+    role: str = ""
+    bio: str = ""
+    location: str = ""
     niche: str = ""
     expertise: str = ""
     expertise_level: str = ""

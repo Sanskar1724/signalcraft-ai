@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { api, type ContentDetail, type ContentItem } from "../../lib/api";
-import { timeAgo } from "../../components/charts";
-import { Card, CopyButton, Empty, Loading, Modal, Pill, Quality, Tabs, useApi } from "../../components/ui";
+import { api, type ContentDetail, type ContentItem } from "../../../lib/api";
+import { timeAgo } from "../../../components/charts";
+import { Card, CopyButton, Empty, Loading, Modal, Pill, Quality, Tabs, useApi } from "../../../components/ui";
 
 export default function LibraryPage() {
   const lib = useApi(() => api.library());

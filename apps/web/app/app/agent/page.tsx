@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../../lib/api";
-import { Card } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { Card } from "../../../components/ui";
 
 const SUGGESTIONS = [
   "What should I post today?",

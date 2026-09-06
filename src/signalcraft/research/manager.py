@@ -33,12 +33,12 @@ def _enrich(it: ResearchItem, profile_keys: set[str]) -> dict:
 
 
 def collect_and_store(query: str = "", limit: int = 20, user_id: int = 1,
-                      use_live: bool = True) -> list[dict]:
+                      use_live: bool = True, timeout: int = 15) -> list[dict]:
     profile_keys = get_profile(user_id).keywords()
     sources: list[BaseSource] = [SampleSource()]
     if use_live:
         # Pluggable pipeline (§8): new sources append here, no core rewrite.
-        sources = [RSSSource(), GitHubSource(), RedditSource(), YouTubeSource(),
+        sources = [RSSSource(timeout=timeout), GitHubSource(), RedditSource(), YouTubeSource(),
                    NewsSource(), WebSearchSource(), SearchTrendsSource(),
                    SampleSource()]
     seen: dict[str, ResearchItem] = {}

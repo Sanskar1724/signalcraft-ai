@@ -54,7 +54,8 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
                    f"Top evidence: {'; '.join(t['evidence_titles'][:2])}")
         why_you = (f"Matches your niche '{profile.niche or '—'}' "
                    f"(user relevance {user_rel}, audience fit {t['audience_fit']}). "
-                   f"Audience: {profile.audience or '—'}.")
+                   f"Audience: {profile.audience or '—'}. "
+                   f"Goals: {profile.goals or '—'}.")
         angle_prompt = (
             f"Creator niche: {profile.niche}. Expertise: {profile.expertise}. "
             f"Tone: {profile.tone}. Topic: {t['topic']}. "

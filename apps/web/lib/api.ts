@@ -1,9 +1,10 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const { authHeaders } = await import("./auth");
   const res = await fetch(`${API}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -53,9 +54,41 @@ export const api = {
   calendar: () => req<{ items: CalendarItem[] }>("/api/calendar"),
   schedule: (s: { platform: string; scheduled_for: string; content_id?: number; notes: string }) =>
     req("/api/calendar", { method: "POST", body: JSON.stringify(s) }),
+  signup: (name: string, email: string, password: string) =>
+    req<{ user: { onboarding_status: string }; token: string }>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password }),
+    }),
+  login: (email: string, password: string) =>
+    req<{ user: { onboarding_status: string }; token: string }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  logout: () => req("/api/auth/logout", { method: "POST" }),
+  changePassword: (current: string, next: string) =>
+    req("/api/auth/password", { method: "POST", body: JSON.stringify({ current, new: next }) }),  me: () => req<{ user: { name: string; email: string }; onboarding_status: string }>("/api/auth/me"),
+  onboardStatus: () => req<{ status: string; name_set: boolean; niche_set: boolean }>("/api/onboarding/status"),
+  onboardStep: (step: Record<string, unknown>) =>
+    req<{ status: string; name_set: boolean; niche_set: boolean }>("/api/onboarding", {
+      method: "POST",
+      body: JSON.stringify(step),
+    }),
+  onboardComplete: () =>
+    req<{ status: string; summary: Record<string, unknown>; built: Record<string, number> }>(
+      "/api/onboarding/complete",
+      { method: "POST" }
+    ),
+  getPreferences: () => req<Preferences>("/api/preferences"),
+  savePreferences: (p: Partial<Preferences>) =>
+    req<Preferences>("/api/preferences", { method: "PUT", body: JSON.stringify(p) }),
+  context: () => req<Record<string, unknown>>("/api/context"),
 };
 
 export interface Profile {
+  name: string;
+  role: string;
+  bio: string;
+  location: string;
   niche: string;
   expertise: string;
   expertise_level: string;
@@ -171,4 +204,20 @@ export interface CalendarItem {
   status: string;
   title?: string | null;
   notes: string;
+}
+
+export interface Preferences {
+  tone: string;
+  length: string;
+  creativity: number;
+  research_depth: string;
+  use_trends: number;
+  always_research: number;
+  citation_pref: string;
+  emoji_pref: string;
+  cta_pref: string;
+  formality: string;
+  sentence_style: string;
+  formats: string[];
+  frequency: string;
 }

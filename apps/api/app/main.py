@@ -13,9 +13,13 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from signalcraft.config import settings  # noqa: E402
 
-from .api.router import router  # noqa: E402
+from .api.router import public, router  # noqa: E402
 from .core.errors import register_handlers  # noqa: E402
 from .core.middleware import RequestIdMiddleware  # noqa: E402
+
+from signalcraft.db import init_db  # noqa: E402
+
+init_db()  # ensure schema + migrations exist before serving
 
 app = FastAPI(title="SignalCraft AI", version="0.1.0")
 app.add_middleware(RequestIdMiddleware)
@@ -28,5 +32,6 @@ app.add_middleware(
 )
 register_handlers(app)
 app.include_router(router)
+app.include_router(public)
 
 __all__ = ["app"]

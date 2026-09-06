@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../../lib/api";
-import { timeAgo } from "../../components/charts";
-import { Card, Empty, Loading, Pill, useApi } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { timeAgo } from "../../../components/charts";
+import { Card, Empty, Loading, Pill, useApi } from "../../../components/ui";
 
 export default function CalendarPage() {
   const cal = useApi(() => api.calendar());

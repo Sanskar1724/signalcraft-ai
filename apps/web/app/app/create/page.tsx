@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, type GenerateResult, type Opportunity } from "../../lib/api";
-import { Card, CopyButton, Empty, Pill, Quality, Tabs, useApi } from "../../components/ui";
+import { api, type GenerateResult, type Opportunity } from "../../../lib/api";
+import { Card, CopyButton, Empty, Pill, Quality, Tabs, useApi } from "../../../components/ui";
 
 const PLATS = ["LinkedIn", "X", "Blog"];
 

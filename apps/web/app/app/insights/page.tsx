@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../../lib/api";
-import { Card, Loading, useApi } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { Card, Loading, useApi } from "../../../components/ui";
 
 function split(lines: string[]) {
   const good: string[] = [];

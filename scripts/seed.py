@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from signalcraft import analytics, calendar  # noqa: E402
+from signalcraft.auth import set_onboarding_status  # noqa: E402
 from signalcraft.content.generator import generate_content  # noqa: E402
 from signalcraft.db import get_conn, init_db  # noqa: E402
 from signalcraft.memory import learn_from_performance  # noqa: E402
@@ -48,7 +49,7 @@ def main(fresh: bool = False) -> None:
 
     seed_default_profile()
     sync_profile_taxonomy()
-    collect_and_store(limit=20, use_live=False)
+    set_onboarding_status(1, "COMPLETED")    collect_and_store(limit=20, use_live=False)
     opps = build_opportunities()
     made = 0
     for opp in opps[:7]:

@@ -1,89 +1,113 @@
-"use client";
-
 import Link from "next/link";
-import { api } from "../lib/api";
-import { HBar, Sparkline } from "../components/charts";
-import { timeAgo } from "../components/charts";
-import { Card, Empty, Loading, ScoreBar, Stat, useApi } from "../components/ui";
+import Logo from "../components/Logo";
 
-export default function OverviewPage() {
-  const a = useApi(() => api.analytics());
-  const o = useApi(() => api.opportunities());
-  const ins = useApi(() => api.insights());
-  const busy = a.busy || o.busy || ins.busy;
-  const error = a.error || o.error || ins.error;
-
-  async function refresh() {
-    await api.runResearch(20);
-    a.reload();
-    o.reload();
-    ins.reload();
-  }
-
-  if (busy) return (<><h1>Overview</h1><Loading /></>);
-  if (error || !a.data || !o.data)
-    return (<><h1>Overview</h1><div className="error">API unavailable: {error} — is the backend running?</div></>);
-
-  const top = o.data.slice(0, 3);
-  const trend = (a.data.rows ?? []).map((r) => r.engagement_rate);
-  const topPlatform = a.data.by_platform[0];
-
+function Section({ id, kicker, title, children }: { id: string; kicker: string; title: string; children: React.ReactNode }) {
   return (
-    <>
-      <h1>Good day, creator</h1>
-      <p className="sub">Your briefing — research, trends, performance and next moves.</p>
-      <div className="grid3">
-        <Stat hot value={String(top.length)} label="Top opportunities" />
-        <Stat value={String(a.data.posts)} label="Posts tracked" />
-        <Stat value={`${a.data.avg_engagement}%`} label="Avg engagement" />
-      </div>
-      <div className="row" style={{ marginTop: 12 }}>
-        <button className="btn ghost" onClick={refresh}>Refresh research</button>
-        <Link href="/create" className="btn" style={{ textDecoration: "none" }}>Create content</Link>
-        <Link href="/agent" className="btn ghost" style={{ textDecoration: "none" }}>Ask agent</Link>
-      </div>
+    <section id={id} className="landsec">
+      <p className="kicker">{kicker}</p>
+      <h2 className="landh">{title}</h2>
+      {children}
+    </section>
+  );
+}
 
-      <div className="grid3" style={{ marginTop: 4 }}>
-        <Card>
-          <h3>Engagement trend</h3>
-          <Sparkline points={trend} />
-          <p className="muted">Per-post engagement across your library.</p>
-        </Card>
-        <Card>
-          <h3>Top topics</h3>
-          {(a.data.best_topics ?? []).map((t) => (
-            <HBar key={t.topic} label={t.topic} value={t.avg_engagement}
-              max={Math.max(...a.data!.best_topics.map((x) => x.avg_engagement), 1)} />
-          ))}
-          {!(a.data.best_topics ?? []).length && <p className="muted">No data yet.</p>}
-        </Card>
-        <Card>
-          <h3>Top platforms</h3>
-          {(a.data.by_platform ?? []).slice(0, 4).map((t) => (
-            <HBar key={t.platform} label={t.platform} value={t.avg_engagement}
-              max={Math.max(...a.data!.by_platform.map((x) => x.avg_engagement), 1)} />
-          ))}
-          {topPlatform && <p className="muted">Prioritize {topPlatform.platform} this week.</p>}
-        </Card>
-      </div>
+export default function Landing() {
+  return (
+    <div className="land">
+      <header className="landnav">
+        <Link href="/" className="landbrand"><Logo size={30} /><b>Signal<span>Craft</span></b></Link>
+        <nav>
+          <a href="#product">Product</a>
+          <a href="#how">How it works</a>
+          <a href="#intelligence">Intelligence</a>
+          <a href="#analytics">Analytics</a>
+          <a href="https://github.com/Sanskar1724/signalcraft-ai">GitHub</a>
+        </nav>
+        <div>
+          <Link href="/login" className="btn ghost small">Sign In</Link>{" "}
+          <Link href="/signup" className="btn small">Get Started</Link>
+        </div>
+      </header>
 
-      <h2>Recent recommendations</h2>
-      {top.length === 0 && <Empty text="No opportunities yet — hit Refresh research." />}
-      {top.map((item) => (
-        <Card key={item.id} glow>
-          <h3>{item.topic} — {item.score}/100</h3>
-          <ScoreBar value={item.score} />
-          <p className="muted">{item.angle}</p>
-          <p className="muted">Best for: {item.platform} · confidence {item.confidence}</p>
-        </Card>
-      ))}
+      <section className="hero">
+        <p className="kicker">Personal AI content strategist</p>
+        <h1>Stop guessing.<br />Start publishing what <em>matters</em>.</h1>
+        <p className="lede">
+          SignalCraft learns who you are, researches your niche every day, and tells you
+          exactly what to post — then helps you write it, measures it, and gets smarter.
+        </p>
+        <div className="row">
+          <Link href="/signup" className="btn">Get Started — it&apos;s free to try</Link>
+          <Link href="#how" className="btn ghost">See how it works</Link>
+        </div>
+        <div className="signalstrip">
+          <span className="pill li">AI Agents · trend 82</span>
+          <span className="pill x">LLM pipelines · opportunity 91</span>
+          <span className="pill blog">PySpark + AI · rising</span>
+        </div>
+      </section>
 
-      <h2>AI insights</h2>
-      {(ins.data?.insights ?? []).slice(0, 3).map((l, i) => (
-        <Card key={i}><p style={{ margin: 0 }}>{l}</p></Card>
-      ))}
-      <p><Link href="/insights" style={{ color: "var(--accent2)" }}>All insights →</Link></p>
-      <p className="stamp">Updated {timeAgo(new Date().toISOString())} · demo data</p>
-    </>
+      <Section id="product" kicker="The problem" title="Generic AI writers don't know you.">
+        <p className="lede">
+          Prompt-to-paragraph tools treat a data engineer and a lifestyle influencer identically.
+          SignalCraft starts from your profile — niche, audience, goals, style, history — and only
+          then looks at the world.
+        </p>
+      </Section>
+
+      <Section id="how" kicker="How it works" title="You → intelligence → content → learning.">
+        <div className="grid3">
+          <div className="card"><h3>1 · Tell it who you are</h3><p className="muted">A 7-step onboarding captures niche, audience, goals, style and platforms.</p></div>
+          <div className="card"><h3>2 · Get your briefing</h3><p className="muted">Fresh research becomes trends scored for YOU, with reasons attached.</p></div>
+          <div className="card"><h3>3 · Publish &amp; improve</h3><p className="muted">Platform-native drafts, critique loops, analytics that teach the system.</p></div>
+        </div>
+      </Section>
+
+      <Section id="intelligence" kicker="Trend intelligence" title="Not what's trending. What's trending for you.">
+        <div className="card glow">
+          <h3>AI Agents + Data Engineering — opportunity 93/100</h3>
+          <p><b>Observed fact.</b> 5 fresh sources, growth 0.8, momentum across RSS and community.</p>
+          <p><b>Interpretation.</b> Matches your niche (relevance 0.9) and your developer audience.</p>
+          <p><b>Recommendation.</b> “How AI agents are changing data pipeline development.” Best for LinkedIn + X.</p>
+        </div>
+      </Section>
+
+      <Section id="product-gen" kicker="Content generation" title="One opportunity, three native voices.">
+        <p className="lede">LinkedIn storytelling, X threads, long-form Blog — each rendered from platform rules and a validated brief, never truncated copies.</p>
+      </Section>
+
+      <Section id="brain" kicker="Personal content brain" title="It remembers what works for you.">
+        <p className="lede">Winning topics, weak hooks, best formats, your feedback — stored as structured memory that re-ranks every future recommendation.</p>
+      </Section>
+
+      <Section id="analytics" kicker="Performance learning" title="Every post makes the next one smarter.">
+        <p className="lede">Log impressions, likes, comments once. Analytics, insights and memory update automatically — the loop never breaks.</p>
+      </Section>
+
+      <Section id="agent" kicker="Content agent" title="Ask it anything about your strategy.">
+        <div className="card">
+          <p><b>You:</b> What should I post today?</p>
+          <p className="muted"><b>SignalCraft:</b> Your top opportunity is “LLM pipelines” (91/100) — your last 3 technical posts averaged 9.4% engagement…</p>
+        </div>
+      </Section>
+
+      <Section id="preview" kicker="Dashboard preview" title="Your morning briefing, in one screen.">
+        <div className="grid3">
+          <div className="metric hot"><b>8</b><span>opportunities ranked</span></div>
+          <div className="metric"><b>21</b><span>drafts generated</span></div>
+          <div className="metric"><b>9.4%</b><span>avg engagement</span></div>
+        </div>
+      </Section>
+
+      <section className="landsec center">
+        <h2 className="landh">Tell SignalCraft who you are.<br />It handles the rest.</h2>
+        <p><Link href="/signup" className="btn">Build my content intelligence</Link></p>
+      </section>
+
+      <footer className="landfoot">
+        <span>SignalCraft AI — personal AI content strategist.</span>
+        <span><a href="https://github.com/Sanskar1724/signalcraft-ai">GitHub</a> · <Link href="/login">Sign In</Link></span>
+      </footer>
+    </div>
   );
 }

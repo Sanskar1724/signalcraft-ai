@@ -1,10 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { api, type Profile } from "../../lib/api";
-import { Card, Loading, useApi } from "../../components/ui";
+import { api, type Profile } from "../../../../lib/api";
+import { Card, Loading, useApi } from "../../../../components/ui";
 
 const FIELDS: [keyof Profile, string][] = [
+  ["name", "Name"],
+  ["role", "Professional role"],
+  ["bio", "Short bio"],
+  ["location", "Location / timezone"],
   ["niche", "Niche"],
   ["expertise", "Expertise"],
   ["expertise_level", "Expertise level"],
@@ -17,13 +22,23 @@ const FIELDS: [keyof Profile, string][] = [
   ["style_notes", "Style notes"],
 ];
 
-export default function SettingsPage() {
+function SubNav() {
+  return (
+    <div className="row" style={{ marginBottom: 4 }}>
+      <Link href="/app/settings/profile" className="btn small">Profile</Link>
+      <Link href="/app/settings/preferences" className="btn ghost small">Preferences</Link>
+      <Link href="/app/settings/account" className="btn ghost small">Account</Link>
+    </div>
+  );
+}
+
+export default function ProfileSettingsPage() {
   const prof = useApi(() => api.profile());
   const [form, setForm] = useState<Partial<Profile> | null>(null);
   const [saved, setSaved] = useState("");
 
-  if (prof.busy) return (<><h1>Settings</h1><Loading /></>);
-  if (prof.error || !prof.data) return (<><h1>Settings</h1><div className="error">API unavailable: {prof.error}</div></>);
+  if (prof.busy) return (<><h1>Profile</h1><Loading /></>);
+  if (prof.error || !prof.data) return (<><h1>Profile</h1><div className="error">API unavailable: {prof.error}</div></>);
 
   const cur = { ...prof.data, ...(form ?? {}) };
 
@@ -32,13 +47,14 @@ export default function SettingsPage() {
     await api.updateProfile(form ?? {});
     setForm(null);
     prof.reload();
-    setSaved("Profile saved — research, trends and generation now adapt to it.");
+    setSaved("Saved — recommendations now use this.");
   }
 
   return (
     <>
-      <h1>Creator profile</h1>
-      <p className="sub">Everything — research, trends, generation — adapts to this.</p>
+      <h1>Settings</h1>
+      <SubNav />
+      <h2>Profile</h2>
       <Card glow>
         <label className="field">Preferred topics (comma separated)
           <input

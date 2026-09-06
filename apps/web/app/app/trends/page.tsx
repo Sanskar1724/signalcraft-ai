@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../../lib/api";
-import { Card, Empty, Loading, ScoreBar, Tabs, useApi } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { Card, Empty, Loading, ScoreBar, Tabs, useApi } from "../../../components/ui";
 
 export default function TrendingPage() {
   const { data, error, busy } = useApi(() => api.trends());

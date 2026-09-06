@@ -90,3 +90,51 @@ def test_auth_enforced_when_key_set(client, monkeypatch):
     assert client.get("/api/profile").status_code == 401
     assert client.get("/api/profile", headers={"X-API-Key": "nope"}).status_code == 401
     assert client.get("/api/profile", headers={"X-API-Key": "secret"}).status_code == 200
+
+
+def test_signup_login_me_logout(client):
+    s = client.post("/api/auth/signup", json={
+        "name": "Sankiyy", "email": "demo@example.com", "password": "password123"}).json()
+    assert s["user"]["onboarding_status"] == "IN_PROGRESS"
+    token = s["token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert me["user"]["email"] == "demo@example.com"
+    assert client.post("/api/auth/signup", json={
+        "name": "X", "email": "demo@example.com", "password": "password123"}).status_code == 400
+    assert client.post("/api/auth/login", json={
+        "email": "demo@example.com", "password": "wrongpass1"}).status_code == 400
+    assert client.get("/api/auth/me", headers={"Authorization": "Bearer nope"}).status_code == 401
+    assert client.post("/api/auth/logout",
+                       headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_onboarding_journey(client):
+    s = client.post("/api/auth/signup", json={
+        "name": "Creator", "email": "j@example.com", "password": "password123"}).json()
+    h = {"Authorization": f"Bearer {s['token']}"}
+    st = client.get("/api/onboarding/status", headers=h).json()
+    assert st["status"] == "IN_PROGRESS" and not st["niche_set"]
+    assert client.post("/api/onboarding/complete", headers=h).status_code == 400
+    assert client.post("/api/onboarding", headers=h, json={"bogus": 1}).status_code == 422
+    r = client.post("/api/onboarding", headers=h, json={
+        "name": "Sankiyy", "role": "AI student", "niche": "AI + Data Engineering",
+        "topics": ["AI agents", "LLMs"], "audience": "Developers",
+        "audience_segments": ["Students"], "goals": ["Personal branding"],
+        "platforms": ["LinkedIn", "X"], "tone": "Technical + simple",
+        "formats": ["Tutorial"], "frequency": "3-5 / week"}).json()
+    assert r["niche_set"] and r["name_set"]
+    done = client.post("/api/onboarding/complete", headers=h).json()
+    assert done["status"] == "COMPLETED"
+    assert done["summary"]["niche"] == "AI + Data Engineering"
+    assert done["built"]["opportunities"] >= 1
+    prefs = client.get("/api/preferences", headers=h).json()
+    assert prefs["frequency"] == "3-5 / week" and prefs["formats"] == ["Tutorial"]
+    ctx = client.get("/api/context", headers=h).json()
+    assert ctx["niche"] == "AI + Data Engineering" and "Students" in ctx["audience_segments"]
+    assert "AI agents" in ctx["tracked_topics"]
+
+
+def test_preferences_validation(client):
+    assert client.put("/api/preferences", json={"creativity": 0.2}).json()["creativity"] == 0.2
+    assert client.put("/api/preferences", json={"creativity": 9}).json()["creativity"] == 1.0

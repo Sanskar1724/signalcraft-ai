@@ -9,8 +9,10 @@ from .trends import detect_trends
 __all__ = ["run_refresh"]
 
 
-def run_refresh(user_id: int = 1, limit: int = 20, use_live: bool = True) -> dict:
-    research = collect_and_store(limit=limit, user_id=user_id, use_live=use_live)
+def run_refresh(user_id: int = 1, limit: int = 20, use_live: bool = True,
+                timeout: int = 15) -> dict:
+    research = collect_and_store(limit=limit, user_id=user_id, use_live=use_live,
+                                 timeout=timeout)
     trends = detect_trends(user_id=user_id)
     opps = build_opportunities(user_id=user_id)
     return {"research": len(research), "trends": len(trends), "opportunities": len(opps)}

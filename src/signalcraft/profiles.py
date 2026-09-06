@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from .db import get_conn
+from .db import get_conn, new_uuid
 
 __all__ = ["Profile", "DEFAULT_PROFILE", "get_profile", "update_profile",
            "seed_default_profile"]
@@ -29,6 +29,10 @@ DEFAULT_PROFILE = {
 @dataclass
 class Profile:
     user_id: int = 1
+    name: str = "Creator"
+    role: str = ""
+    bio: str = ""
+    location: str = ""
     niche: str = ""
     expertise: str = ""
     expertise_level: str = ""
@@ -52,13 +56,17 @@ class Profile:
 def get_profile(user_id: int = 1) -> Profile:
     conn = get_conn()
     try:
+        user = conn.execute("SELECT name FROM users WHERE id=?", (user_id,)).fetchone()
         row = conn.execute("SELECT * FROM profiles WHERE user_id=?", (user_id,)).fetchone()
         if row is None:
-            conn.execute("INSERT INTO profiles (user_id) VALUES (?)", (user_id,))
+            conn.execute("INSERT INTO profiles (uuid, user_id) VALUES (?, ?)",
+                         (new_uuid(), user_id))
             conn.commit()
-            return Profile(user_id=user_id)
+            return Profile(user_id=user_id, name=(user["name"] if user else "Creator"))
         return Profile(
             user_id=user_id,
+            name=user["name"] if user else "Creator",
+            role=row["role"] or "", bio=row["bio"] or "", location=row["location"] or "",
             niche=row["niche"] or "", expertise=row["expertise"] or "",
             expertise_level=row["expertise_level"] or "",
             audience=row["audience"] or "", goals=row["goals"] or "",
@@ -76,7 +84,8 @@ def get_profile(user_id: int = 1) -> Profile:
 
 
 def update_profile(user_id: int = 1, **fields) -> Profile:
-    allowed = {"niche", "expertise", "expertise_level", "audience", "goals",
+    allowed = {"role", "bio", "location", "niche", "expertise", "expertise_level",
+               "audience", "goals",
                "platforms", "writing_style",
                "tone", "topics", "avoid_topics", "style_notes",
                "content_preferences", "posting_preferences"}

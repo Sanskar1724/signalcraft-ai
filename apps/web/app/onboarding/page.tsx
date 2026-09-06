@@ -1,0 +1,230 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Logo from "../../components/Logo";
+import { api } from "../../lib/api";
+import { getToken } from "../../lib/auth";
+
+const GOALS = ["Personal branding", "Grow audience", "Build authority", "Get job opportunities",
+  "Generate leads", "Promote projects", "Share knowledge", "Build community"];
+const STYLES = ["Professional", "Technical", "Educational", "Conversational",
+  "Opinionated", "Storytelling", "Simple", "Analytical"];
+const FORMATS = ["Tutorial", "Opinion", "Project breakdown", "News analysis",
+  "Story", "Case study", "Educational", "Technical deep dive"];
+const FREQS = ["1–2 / week", "3–5 / week", "Daily", "Flexible"];
+const PLATFORMS = ["LinkedIn", "X", "Blog", "Newsletter"];
+
+function Chips({ options, value, onChange, multi = true }: {
+  options: string[]; value: string[]; onChange: (v: string[]) => void; multi?: boolean;
+}) {
+  function toggle(o: string) {
+    onChange(multi
+      ? (value.includes(o) ? value.filter((x) => x !== o) : [...value, o])
+      : [o]);
+  }
+  return (
+    <div className="chips">
+      {options.map((o) => (
+        <button key={o} type="button" className={"chip" + (value.includes(o) ? " on" : "")} onClick={() => toggle(o)}>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const csv = (s: string) => s.split(",").map((t) => t.trim()).filter(Boolean);
+
+export default function OnboardingPage() {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [building, setBuilding] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState<Record<string, unknown> | null>(null);
+  const [f, setF] = useState<Record<string, string | string[]>>({
+    name: "", role: "", bio: "", location: "", niche: "", secondary_topics: [],
+    expertise_level: "", audience: "", audience_segments: [], goals: [],
+    writing_style: "", tone: "", style_notes: "", topics: [], avoid_topics: [],
+    formats: [], frequency: "", platforms: ["LinkedIn", "X", "Blog"],
+  });
+  const set = (k: string, v: string | string[]) => setF({ ...f, [k]: v });
+
+  if (typeof window !== "undefined" && !getToken()) {
+    router.replace("/login");
+    return <p className="muted">Redirecting…</p>;
+  }
+
+  async function save(patch: Record<string, unknown>) {
+    setError("");
+    try {
+      await api.onboardStep(patch);
+    } catch (e) {
+      setError((e as Error).message);
+      throw e;
+    }
+  }
+
+  async function next(patch: Record<string, unknown> = {}) {
+    setBusy(true);
+    try {
+      await save({ ...collect(step), ...patch });
+      setStep(step + 1);
+    } catch { /* error shown */ } finally {
+      setBusy(false);
+    }
+  }
+
+  function collect(s: number): Record<string, unknown> {
+    switch (s) {
+      case 0: return { name: f.name, role: f.role, bio: f.bio, location: f.location };
+      case 1: return { niche: f.niche, secondary_topics: f.secondary_topics, expertise_level: f.expertise_level };
+      case 2: return { audience: f.audience, audience_segments: f.audience_segments };
+      case 3: return { goals: f.goals };
+      case 4: return { writing_style: f.writing_style, tone: f.tone, style_notes: f.style_notes };
+      case 5: return { topics: f.topics, avoid_topics: f.avoid_topics, formats: f.formats, frequency: f.frequency };
+      default: return { platforms: f.platforms };
+    }
+  }
+
+  async function finish() {
+    setBusy(true);
+    setBuilding(true);
+    try {
+      await save(collect(6));
+      const r = await api.onboardComplete();
+      setDone(r.summary);
+    } catch { /* shown */ } finally {
+      setBusy(false);
+    }
+  }
+
+  const titles = ["About you", "Your expertise", "Your audience", "Your goals",
+    "Writing style", "Content preferences", "Platforms"];
+
+  if (done) {
+    const d = done as Record<string, string | string[]>;
+    return (
+      <div className="wizwrap">
+        <p className="kicker">Setup complete</p>
+        <h1>Your content profile</h1>
+        <div className="card glow">
+          {Object.entries({ Niche: d.niche, Audience: d.audience, Goals: d.goals, Style: d.style, Platforms: d.platforms }).map(([k, v]) => (
+            <p key={k}><span className="muted">{k}:</span> <b>{Array.isArray(v) ? v.join(" + ") : v}</b></p>
+          ))}
+        </div>
+        <p><button className="btn" onClick={() => router.replace("/app")}>Build my content intelligence</button></p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wizwrap">
+      <p><Logo size={30} /></p>
+      <p className="kicker">Step {step + 1} of 7 — {titles[step]}</p>
+      <div className="steps">{titles.map((_, i) => <i key={i} className={i <= step ? "on" : ""} />)}</div>
+
+      {step === 0 && (
+        <div className="card">
+          <h1>About you</h1>
+          <label className="field">Name<input value={f.name as string} onChange={(e) => set("name", e.target.value)} placeholder="Sankiyy" /></label>
+          <label className="field" style={{ marginTop: 10 }}>Professional role
+            <input value={f.role as string} onChange={(e) => set("role", e.target.value)} placeholder="AI / Data Engineering Student" /></label>
+          <label className="field" style={{ marginTop: 10 }}>Short bio
+            <input value={f.bio as string} onChange={(e) => set("bio", e.target.value)} placeholder="Building AI and data engineering projects." /></label>
+          <label className="field" style={{ marginTop: 10 }}>Location / timezone (optional)
+            <input value={f.location as string} onChange={(e) => set("location", e.target.value)} placeholder="IST" /></label>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="card">
+          <h1>Your expertise</h1>
+          <label className="field">Primary niche
+            <input value={f.niche as string} onChange={(e) => set("niche", e.target.value)} placeholder="AI + Data Engineering" /></label>
+          <label className="field" style={{ marginTop: 10 }}>Secondary topics (comma separated)
+            <input value={(f.secondary_topics as string[]).join(", ")} onChange={(e) => set("secondary_topics", csv(e.target.value))} placeholder="LLMs, AI Agents, PySpark, Open Source" /></label>
+          <p className="lbl">Expertise level</p>
+          <Chips options={["Beginner", "Intermediate", "Advanced", "Expert"]} value={[f.expertise_level as string]} onChange={([v]) => set("expertise_level", v ?? "")} multi={false} />
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="card">
+          <h1>Your audience</h1>
+          <label className="field">Who are you creating for? (one line)
+            <input value={f.audience as string} onChange={(e) => set("audience", e.target.value)} placeholder="Developers, Data Engineers, Students" /></label>
+          <p className="lbl">Audience segments</p>
+          <Chips options={["Developers", "Data Engineers", "Students", "Founders", "Designers", "Managers"]}
+            value={f.audience_segments as string[]} onChange={(v) => set("audience_segments", v)} />
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="card">
+          <h1>Your goals</h1>
+          <p className="lbl">Pick all that apply</p>
+          <Chips options={GOALS} value={f.goals as string[]} onChange={(v) => set("goals", v)} />
+          <label className="field" style={{ marginTop: 10 }}>Custom goal (optional)
+            <input placeholder="e.g. Document my learning" onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && !(f.goals as string[]).includes(v)) set("goals", [...(f.goals as string[]), v]);
+            }} /></label>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="card">
+          <h1>Writing style</h1>
+          <p className="lbl">How do you want to sound? (combinations welcome)</p>
+          <Chips options={STYLES} value={(f.writing_style as string).split(" + ").filter(Boolean)}
+            onChange={(v) => set("writing_style", v.join(" + "))} />
+          <label className="field" style={{ marginTop: 10 }}>Tone
+            <input value={f.tone as string} onChange={(e) => set("tone", e.target.value)} placeholder="Technical + simple + professional" /></label>
+          <label className="field" style={{ marginTop: 10 }}>Describe your writing style
+            <input value={f.style_notes as string} onChange={(e) => set("style_notes", e.target.value)}
+              placeholder="I like technical content but explain complex concepts simply. No AI hype." /></label>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="card">
+          <h1>Content preferences</h1>
+          <label className="field">Topics you want to talk about (comma separated)
+            <input value={(f.topics as string[]).join(", ")} onChange={(e) => set("topics", csv(e.target.value))} /></label>
+          <label className="field" style={{ marginTop: 10 }}>Topics to avoid
+            <input value={(f.avoid_topics as string[]).join(", ")} onChange={(e) => set("avoid_topics", csv(e.target.value))} placeholder="Generic AI hype, clickbait" /></label>
+          <p className="lbl">Formats</p>
+          <Chips options={FORMATS} value={f.formats as string[]} onChange={(v) => set("formats", v)} />
+          <p className="lbl">Posting frequency</p>
+          <Chips options={FREQS} value={[f.frequency as string]} onChange={([v]) => set("frequency", v ?? "")} multi={false} />
+        </div>
+      )}
+
+      {step === 6 && (
+        <div className="card">
+          <h1>Platforms</h1>
+          <p className="lbl">Where should SignalCraft write for?</p>
+          <Chips options={PLATFORMS} value={f.platforms as string[]} onChange={(v) => set("platforms", v)} />
+        </div>
+      )}
+
+      {error && <p className="error">{error}</p>}
+      <div className="row">
+        {step > 0 && <button className="btn ghost" onClick={() => setStep(step - 1)} disabled={busy}>Back</button>}
+        <span style={{ flex: 1 }} />
+        {step < 6 ? (
+          <button className="btn" onClick={() => next()} disabled={busy || (step === 0 && !(f.name as string).trim()) || (step === 1 && !(f.niche as string).trim())}>
+            {busy ? "Saving…" : "Continue"}
+          </button>
+        ) : (
+          <button className="btn" onClick={finish} disabled={busy}>
+            {building ? <><span className="spin" />Building your intelligence…</> : "Complete setup"}
+          </button>
+        )}
+      </div>
+      {building && <p className="muted">Researching your niche and ranking your first opportunities — up to a minute on live AI.</p>}
+    </div>
+  );
+}

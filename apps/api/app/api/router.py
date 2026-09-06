@@ -1,7 +1,7 @@
-"""REST routes (§23). All errors use the envelope from core.errors."""
+"""REST routes (§23, §30-§32). All errors use the envelope from core.errors."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
 from ..analytics.service import insights, summary
 from ..api.deps import current_request_id, get_user_id, require_key
@@ -9,11 +9,75 @@ from ..core.config import API_PREFIX
 from ..models.models import (ChatOut, ContentDetail, ContentItem, Opportunity,
                              Performance, ProfileOut, TrendSignal)
 from ..repositories.content import get_content_detail
-from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, PerformanceIn,
-                               ProfileUpdate, ResearchRun, ReviseIn, ScheduleIn)
-from ..services.services import agent, content, opportunity, profile, research, trend
+from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, LoginIn,
+                               OnboardingStep, PasswordIn, PerformanceIn,
+                               PreferencesUpdate, ProfileUpdate, ResearchRun,
+                               ReviseIn, ScheduleIn, SignupIn)
+from ..services.services import (agent, content, context, identity, onboarding,
+                                 opportunity, preferences, profile, research,
+                                 trend)
 
 router = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_key)])
+public = APIRouter(prefix=API_PREFIX)
+
+
+@public.post("/auth/signup")
+async def post_signup(body: SignupIn) -> dict:
+    return identity.signup(body.name, body.email, body.password)
+
+
+@public.post("/auth/login")
+async def post_login(body: LoginIn) -> dict:
+    return identity.login(body.email, body.password)
+
+
+@router.post("/auth/logout")
+async def post_logout(authorization: str | None = Header(default=None)) -> dict:
+    token = (authorization or "")[7:] if (authorization or "").lower().startswith("bearer ") else ""
+    if not token:
+        raise ValueError("missing session token")
+    return identity.logout(token)
+
+
+@router.post("/auth/password")
+async def post_password(body: PasswordIn, user_id: int = Depends(get_user_id)) -> dict:
+    return identity.password(user_id, body.current, body.new)
+
+
+@router.get("/auth/me")
+async def get_me(user_id: int = Depends(get_user_id)) -> dict:
+    return identity.me(user_id)
+
+
+@router.get("/onboarding/status")
+async def get_onboarding_status(user_id: int = Depends(get_user_id)) -> dict:
+    return onboarding.status(user_id)
+
+
+@router.post("/onboarding")
+async def post_onboarding(body: OnboardingStep, user_id: int = Depends(get_user_id)) -> dict:
+    return onboarding.apply(user_id, **body.model_dump(exclude_none=True))
+
+
+@router.post("/onboarding/complete")
+async def post_onboarding_complete(user_id: int = Depends(get_user_id)) -> dict:
+    return onboarding.complete(user_id)
+
+
+@router.get("/preferences")
+async def get_preferences(user_id: int = Depends(get_user_id)) -> dict:
+    return preferences.get(user_id)
+
+
+@router.put("/preferences")
+async def put_preferences(body: PreferencesUpdate,
+                          user_id: int = Depends(get_user_id)) -> dict:
+    return preferences.update(user_id, **body.model_dump(exclude_none=True))
+
+
+@router.get("/context")
+async def get_context(user_id: int = Depends(get_user_id)) -> dict:
+    return context.get(user_id)
 
 
 @router.get("/health")

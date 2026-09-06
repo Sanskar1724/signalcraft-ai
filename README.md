@@ -6,14 +6,25 @@ SignalCraft AI learns who a creator is, watches what is happening in their
 niche right now, and tells them *what to talk about, how to say it on each
 platform, and what to do next* based on what actually performed.
 
-Built to a written product specification (`prompt1.txt`): profile → research →
-trend intelligence → personalized opportunities → content agent → LinkedIn / X /
-Blog drafts → critique → performance analytics → memory → better recommendations.
+New users flow through **landing → signup → 7-step onboarding → personalized
+dashboard**; every preference persists through the API and drives research,
+ranking, generation and the agent.
+
+Built to a written product specification (`prompt1.txt` plus the full-stack
+SaaS brief): profile → research → trend intelligence → personalized
+opportunities → content agent → LinkedIn / X / Blog drafts → critique →
+performance analytics → memory → better recommendations.
 
 ## Features
 
-- **Creator profile** — niche, expertise, audience, goals, platforms, style, tone,
-  topics, avoid-list, content and posting preferences drive everything.
+- **Landing → signup → 7-step onboarding** — identity, expertise, audience,
+  goals, style, preferences, platforms; every field persists via the API and
+  the dashboard refuses generic output until setup completes.
+- **Creator profile + preferences** — 14 profile fields plus content, platform
+  and AI-behavior controls (tone, creativity, research depth, citations).
+- **Creator Context service** — one personalization object built from profile,
+  preferences, history, performance and memory, consumed by the agent, briefs
+  and   ranking (pages never reconstruct it).
 - **Research engine** — RSS live collection plus clearly-labeled offline samples;
   GitHub, Reddit, YouTube, News, web search and search-trends plug in behind one
   interface. Sources and URLs are always preserved.
@@ -63,10 +74,10 @@ Run the backend and frontend in two terminals:
 
 ```bash
 # Terminal 1 — REST API on :8001
-uvicorn apps.api.app.main:app --app-dir . --reload
+uvicorn apps.api.app.main:app --app-dir . --reload --port 8001
 
 # Terminal 2 — dashboard on :3001
-cd apps/web && npm install && npm run dev
+cd apps/web && npm install && npm run dev -- --port 3001
 ```
 
 Open http://localhost:3001. The API docs live at http://localhost:8001/docs.

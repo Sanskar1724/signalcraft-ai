@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from itertools import islice
 
 import requests
 
@@ -31,7 +32,7 @@ class RSSSource:
                                  headers={"User-Agent": "SignalCraftAI/0.1"})
                 r.raise_for_status()
                 root = ET.fromstring(r.content)
-                for it in root.iter("item")[:limit]:
+                for it in islice(root.iter("item"), limit):
                     title = (it.findtext("title") or "").strip()
                     link = (it.findtext("link") or "").strip()
                     desc = (it.findtext("description") or "").strip()[:600]

@@ -49,9 +49,16 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
     budget = Budget()
     gateway = gateway or LLMGateway()
     trace = Trace(request)
+    from .personalization import build_context
+    ctx = build_context(user_id)
     profile = get_profile(user_id)
     trace.add("understand_request", classify_intent(request))
-    trace.add("creator_context", {"niche": profile.niche, "audience": profile.audience})
+    trace.add("creator_context", {
+        "name": ctx["user"]["name"], "niche": ctx["niche"], "audience": ctx["audience"],
+        "goals": ctx["goals"], "tone": ctx["tone"], "platforms": ctx["platforms"],
+        "posts": ctx["posts"], "best_topics": ctx["best_topics"],
+        "memories": ctx["memories"][:5],
+    })
     mem = recall(user_id, limit=5)
     trace.add("memory", [f"{m['kind']}:{m['key']}" for m in mem])
 

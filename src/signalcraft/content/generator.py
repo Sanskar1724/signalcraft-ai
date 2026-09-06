@@ -43,8 +43,16 @@ def _evidence_titles(opp: dict) -> list[str]:
         conn.close()
 
 
-def build_brief(profile, opp: dict, evidence_titles: list[str]) -> ContentBrief:
+def build_brief(profile, opp: dict, evidence_titles: list[str],
+                prefs: dict | None = None) -> ContentBrief:
     """Structured content brief (§13) built deterministically, LLM drafts from it."""
+    prefs = prefs or {}
+    cta_by_pref = {
+        "question": "What is working for you?",
+        "link": "Sources linked below — what did I miss?",
+        "follow": "Follow for the next breakdown.",
+        "none": "",
+    }
     return ContentBrief(
         topic=opp.get("topic", ""),
         target_audience=opp.get("audience", profile.audience),
@@ -52,8 +60,8 @@ def build_brief(profile, opp: dict, evidence_titles: list[str]) -> ContentBrief:
         core_message=opp.get("angle", ""),
         angle=opp.get("angle", ""),
         supporting_evidence=evidence_titles[:3],
-        cta="What is working for you?",
-        tone=profile.tone,
+        cta=cta_by_pref.get(prefs.get("cta_pref", ""), "What is working for you?"),
+        tone=prefs.get("tone") or profile.tone,
         things_to_avoid=profile.avoid_topics,
     )
 
@@ -88,7 +96,9 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                                   "memory": [m["key"] for m in recall(user_id, limit=5)]})
 
     evidence = _evidence_titles(opp)
-    brief = build_brief(profile, {**opp, "platform": platform}, evidence)
+    from ..preferences import get_preferences
+    brief = build_brief(profile, {**opp, "platform": platform}, evidence,
+                        get_preferences(user_id))
     trace.add("brief", brief.model_dump())
 
     core = _strategy_text(gateway, brief, profile.tone)

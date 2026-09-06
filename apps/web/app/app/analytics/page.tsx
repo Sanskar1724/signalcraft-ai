@@ -1,8 +1,8 @@
 "use client";
 
-import { api } from "../../lib/api";
-import { HBar, Sparkline } from "../../components/charts";
-import { Card, Empty, Loading, Stat, useApi } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { HBar, Sparkline } from "../../../components/charts";
+import { Card, Empty, Loading, Stat, useApi } from "../../../components/ui";
 
 export default function AnalyticsPage() {
   const { data, error, busy } = useApi(() => api.analytics());

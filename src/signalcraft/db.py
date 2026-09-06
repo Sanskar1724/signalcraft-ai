@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS users (
     uuid TEXT NOT NULL DEFAULT '',
     name TEXT NOT NULL DEFAULT 'Creator',
     email TEXT NOT NULL DEFAULT '',
+    password_hash TEXT NOT NULL DEFAULT '',
+    onboarding_status TEXT NOT NULL DEFAULT 'NOT_STARTED',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -35,6 +37,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT '',
+    bio TEXT NOT NULL DEFAULT '',
+    location TEXT NOT NULL DEFAULT '',
     niche TEXT NOT NULL DEFAULT '',
     expertise TEXT NOT NULL DEFAULT '',
     expertise_level TEXT NOT NULL DEFAULT '',
@@ -49,6 +54,34 @@ CREATE TABLE IF NOT EXISTS profiles (
     content_preferences TEXT NOT NULL DEFAULT '',
     posting_preferences TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    tone TEXT NOT NULL DEFAULT '',
+    length TEXT NOT NULL DEFAULT 'medium',
+    creativity REAL NOT NULL DEFAULT 0.7,
+    research_depth TEXT NOT NULL DEFAULT 'standard',
+    use_trends INTEGER NOT NULL DEFAULT 1,
+    always_research INTEGER NOT NULL DEFAULT 1,
+    citation_pref TEXT NOT NULL DEFAULT 'link',
+    emoji_pref TEXT NOT NULL DEFAULT 'none',
+    cta_pref TEXT NOT NULL DEFAULT 'question',
+    formality TEXT NOT NULL DEFAULT 'neutral',
+    sentence_style TEXT NOT NULL DEFAULT '',
+    formats TEXT NOT NULL DEFAULT '[]',
+    frequency TEXT NOT NULL DEFAULT 'flexible',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS audiences (
@@ -268,9 +301,12 @@ EXTRA_COLUMNS: dict[str, list[str]] = {
     "agent_memories": ["uuid TEXT NOT NULL DEFAULT ''"],
     "calendar_items": ["uuid TEXT NOT NULL DEFAULT ''"],
     "llm_requests": ["uuid TEXT NOT NULL DEFAULT ''"],
-    "users": ["uuid TEXT NOT NULL DEFAULT ''"],
+    "users": ["uuid TEXT NOT NULL DEFAULT ''", "password_hash TEXT NOT NULL DEFAULT ''",
+              "onboarding_status TEXT NOT NULL DEFAULT 'NOT_STARTED'"],
     "profiles": [
-        "uuid TEXT NOT NULL DEFAULT ''", "expertise_level TEXT NOT NULL DEFAULT ''",
+        "uuid TEXT NOT NULL DEFAULT ''", "role TEXT NOT NULL DEFAULT ''",
+        "bio TEXT NOT NULL DEFAULT ''", "location TEXT NOT NULL DEFAULT ''",
+        "expertise_level TEXT NOT NULL DEFAULT ''",
         "writing_style TEXT NOT NULL DEFAULT ''", "content_preferences TEXT NOT NULL DEFAULT ''",
         "posting_preferences TEXT NOT NULL DEFAULT ''",
     ],

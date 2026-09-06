@@ -8,7 +8,14 @@ local mode (§24).
 | Method & path | Purpose |
 |---|---|
 | GET `/api/health` | liveness |
-| GET `/api/profile` · PUT `/api/profile` | creator profile (§7) |
+| POST `/api/auth/signup` · POST `/api/auth/login` | session auth (public) |
+| POST `/api/auth/logout` · POST `/api/auth/password` | session end / rotation |
+| GET `/api/auth/me` | user + onboarding status (routing) |
+| GET `/api/onboarding/status` · POST `/api/onboarding` | stepwise persisted setup |
+| POST `/api/onboarding/complete` | validate + build intelligence + COMPLETED |
+| GET `/api/profile` · PUT `/api/profile` | creator profile (§7, §14) |
+| GET `/api/preferences` · PUT `/api/preferences` | content + AI controls (§15) |
+| GET `/api/context` | Creator Context for debugging (§13) |
 | GET `/api/trends?top_n=` | trend signals (§10) |
 | GET `/api/opportunities?refresh=` | ranked opportunities (§11) |
 | POST `/api/research` `{query, limit, use_live}` | refresh pipeline (§8-§9) |

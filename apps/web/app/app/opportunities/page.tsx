@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { api } from "../../lib/api";
-import { Card, Empty, Loading, Pill, ScoreBar, Tabs, useApi } from "../../components/ui";
+import { api } from "../../../lib/api";
+import { Card, Empty, Loading, Pill, ScoreBar, Tabs, useApi } from "../../../components/ui";
 
 export default function OpportunitiesPage() {
   const { data, error, busy } = useApi(() => api.opportunities());

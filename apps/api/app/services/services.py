@@ -4,8 +4,12 @@ from __future__ import annotations
 import json
 
 from signalcraft import analytics, calendar, jobs
+from signalcraft import auth as _auth
 from signalcraft import memory as _memory
+from signalcraft import onboarding as _onboarding
 from signalcraft import opportunities as _opps
+from signalcraft import personalization as _personalization
+from signalcraft import preferences as _prefs
 from signalcraft import profiles as _profiles
 from signalcraft import trends as _trends
 from signalcraft.content import critique as _critique
@@ -18,7 +22,67 @@ from signalcraft.research import list_recent
 
 from ..repositories.content import get_content_detail
 
-__all__ = ["profile", "research", "trend", "opportunity", "content", "agent"]
+__all__ = ["profile", "research", "trend", "opportunity", "content", "agent",
+           "identity", "onboarding", "preferences", "context"]
+
+
+class identity:
+    @staticmethod
+    def signup(name: str, email: str, password: str) -> dict:
+        user = _auth.create_user(name, email, password)
+        return {"user": user, "token": _auth.create_session(user["id"])}
+
+    @staticmethod
+    def login(email: str, password: str) -> dict:
+        user = _auth.authenticate(email, password)
+        return {"user": user, "token": _auth.create_session(user["id"])}
+
+    @staticmethod
+    def logout(token: str) -> dict:
+        _auth.destroy_session(token)
+        return {"ok": True}
+
+    @staticmethod
+    def password(user_id: int, current: str, new: str) -> dict:
+        _auth.change_password(user_id, current, new)
+        return {"ok": True, "note": "all other sessions were signed out; log in again"}
+
+    @staticmethod
+    def me(user_id: int) -> dict:
+        user = _auth.get_user(user_id)
+        profile = _profiles.get_profile(user_id)
+        return {"user": user, "profile_name": profile.name,
+                "onboarding_status": user["onboarding_status"]}
+
+
+class onboarding:
+    @staticmethod
+    def status(user_id: int = 1) -> dict:
+        return _onboarding.get_status(user_id)
+
+    @staticmethod
+    def apply(user_id: int = 1, **payload) -> dict:
+        return _onboarding.apply_step(user_id, **payload)
+
+    @staticmethod
+    def complete(user_id: int = 1) -> dict:
+        return _onboarding.complete(user_id)
+
+
+class preferences:
+    @staticmethod
+    def get(user_id: int = 1) -> dict:
+        return _prefs.get_preferences(user_id)
+
+    @staticmethod
+    def update(user_id: int = 1, **fields) -> dict:
+        return _prefs.update_preferences(user_id, **fields)
+
+
+class context:
+    @staticmethod
+    def get(user_id: int = 1) -> dict:
+        return _personalization.build_context(user_id)
 
 
 class profile:
@@ -26,13 +90,23 @@ class profile:
     def get(user_id: int = 1) -> dict:
         p = _profiles.get_profile(user_id)
         return {k: getattr(p, k) for k in (
-            "user_id", "niche", "expertise", "expertise_level", "audience", "goals",
+            "user_id", "name", "role", "bio", "location",
+            "niche", "expertise", "expertise_level", "audience", "goals",
             "platforms", "writing_style", "tone", "topics", "avoid_topics",
             "style_notes", "content_preferences", "posting_preferences")}
 
     @staticmethod
     def update(user_id: int = 1, **fields) -> dict:
         fields = {k: v for k, v in fields.items() if v is not None}
+        if "name" in fields:
+            from signalcraft.db import get_conn
+            conn = get_conn()
+            try:
+                conn.execute("UPDATE users SET name=? WHERE id=?",
+                             (str(fields.pop("name")).strip(), user_id))
+                conn.commit()
+            finally:
+                conn.close()
         if fields:
             _profiles.update_profile(user_id, **fields)
         return profile.get(user_id)
