@@ -29,6 +29,16 @@ def test_health(client):
     assert r.headers.get("X-Request-ID")
 
 
+def test_cors_preflight(client):
+    r = client.options(
+        "/api/trends",
+        headers={"Origin": "http://localhost:3000",
+                 "Access-Control-Request-Method": "GET"},
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
 def test_profile_roundtrip(client):
     assert client.get("/api/profile").status_code == 200
     r = client.put("/api/profile", json={"niche": "AI + Data", "tone": "crisp"})

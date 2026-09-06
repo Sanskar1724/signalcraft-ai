@@ -42,6 +42,7 @@ class Settings:
     db_path: Path = field(default_factory=lambda: Path(os.getenv("SIGNALCRAFT_DB_PATH", str(DEFAULT_DB))))
     env: str = os.getenv("SIGNALCRAFT_ENV", "dev")
     api_key: str = os.getenv("SIGNALCRAFT_API_KEY", "")
+    cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")

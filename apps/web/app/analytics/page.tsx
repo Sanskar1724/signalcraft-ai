@@ -1,36 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, type AnalyticsSummary } from "../../lib/api";
+import { api } from "../../lib/api";
+import { Card, Empty, Loading, ScoreBar, Stat, useApi } from "../../components/ui";
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<AnalyticsSummary | null>(null);
+  const { data, error, busy } = useApi(() => api.analytics());
 
-  useEffect(() => {
-    api.analytics().then(setData).catch(() => setData(null));
-  }, []);
-
-  if (!data) return <p>Loading…</p>;
+  if (busy) return (<><h1>Analytics</h1><Loading /></>);
+  if (error || !data) return (<><h1>Analytics</h1><div className="error">API unavailable: {error}</div></>);
 
   return (
     <>
-      <h1>Performance</h1>
+      <h1>Analytics</h1>
+      <p className="sub">Engagement trend, best topics, formats and platforms.</p>
       <div className="grid3">
-        <div className="metric"><b>{data.posts}</b>Posts</div>
-        <div className="metric"><b>{data.avg_engagement}%</b>Avg engagement</div>
+        <Stat hot value={String(data.posts)} label="Posts tracked" />
+        <Stat value={`${data.avg_engagement}%`} label="Avg engagement" />
+        <Stat value={data.by_platform[0]?.platform ?? "—"} label="Top platform" />
       </div>
-      <h2>Best topics</h2>
-      {data.best_topics.map((t) => (
-        <p key={t.topic}>{t.topic} — {t.avg_engagement}% ({t.posts})</p>
-      ))}
-      <h2>Weak topics</h2>
-      {data.weak_topics.map((t) => (
-        <p key={t.topic}>{t.topic} — {t.avg_engagement}% ({t.posts})</p>
-      ))}
-      <h2>Best formats</h2>
-      {data.by_platform.map((t) => (
-        <p key={t.platform}>{t.platform} — {t.avg_engagement}% ({t.posts})</p>
-      ))}
+      <div className="grid3" style={{ marginTop: 12 }}>
+        <Card>
+          <h3>Best topics</h3>
+          {data.best_topics.map((t) => (
+            <div key={t.topic}><p className="muted">{t.topic} — {t.avg_engagement}%</p><ScoreBar value={t.avg_engagement} max={Math.max(10, t.avg_engagement)} /></div>
+          ))}
+        </Card>
+        <Card>
+          <h3>Weak topics</h3>
+          {data.weak_topics.map((t) => (
+            <div key={t.topic}><p className="muted">{t.topic} — {t.avg_engagement}%</p><ScoreBar value={t.avg_engagement} max={Math.max(10, t.avg_engagement)} /></div>
+          ))}
+        </Card>
+        <Card>
+          <h3>Best formats</h3>
+          {data.by_platform.map((t) => (
+            <div key={t.platform}><p className="muted">{t.platform} — {t.avg_engagement}%</p><ScoreBar value={t.avg_engagement} max={Math.max(10, t.avg_engagement)} /></div>
+          ))}
+        </Card>
+      </div>
+      {data.posts === 0 && <Empty text="Log performance for a post to unlock analytics." />}
     </>
   );
 }

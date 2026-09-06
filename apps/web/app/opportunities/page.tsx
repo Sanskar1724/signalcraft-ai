@@ -1,39 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, type Opportunity } from "../../lib/api";
+import { api } from "../../lib/api";
+import { Card, Empty, Loading, Pill, ScoreBar, useApi } from "../../components/ui";
 
 export default function OpportunitiesPage() {
-  const [opps, setOpps] = useState<Opportunity[]>([]);
-  const [error, setError] = useState("");
+  const { data, error, busy } = useApi(() => api.opportunities());
 
-  useEffect(() => {
-    api.opportunities().then(setOpps).catch((e) => setError(e.message));
-  }, []);
-
-  if (error) return <p className="error">API unavailable: {error}</p>;
+  if (busy) return (<><h1>Content Opportunities</h1><Loading /></>);
+  if (error || !data) return (<><h1>Content Opportunities</h1><div className="error">API unavailable: {error}</div></>);
 
   return (
     <>
       <h1>Personalized opportunities</h1>
-      {opps.map((o) => (
-        <div key={o.id} className="card">
-          <h3>
-            {o.topic} — {o.score}/100
-          </h3>
-          <p className="muted">
-            Trend {o.trend_score} · Relevance {o.user_relevance} · Audience {o.audience_fit} ·
-            Freshness {o.freshness} · Competition {o.competition}
-          </p>
-          <p><b>Observed fact.</b> {o.why_now}</p>
-          <p><b>AI interpretation.</b> {o.why_you}</p>
-          <p><b>AI recommendation.</b> Angle: {o.angle}</p>
-          <p className="muted">
-            Audience: {o.audience} · Platform: {o.platform} · Confidence {o.confidence}
-          </p>
-        </div>
+      <p className="sub">Trending topics relevant to YOU — each with its reason.</p>
+      {data.length === 0 && <Empty text="No opportunities yet." />}
+      {data.map((o) => (
+        <Card key={o.id}>
+          <h3>{o.topic}</h3>
+          <div className="row" style={{ alignItems: "center" }}>
+            <span className="muted">Opportunity</span>
+            <div style={{ flex: 1 }}><ScoreBar value={o.score} /></div>
+            <b>{o.score}</b>
+          </div>
+          <div className="fact"><p className="lbl">Observed fact</p><p>{o.why_now}</p></div>
+          <div className="interp"><p className="lbl">AI interpretation</p><p>{o.why_you}</p></div>
+          <div className="reco"><p className="lbl">AI recommendation</p><p>Angle: {o.angle}</p></div>
+          <div style={{ marginTop: 8 }}>
+            <Pill>trend {o.trend_score}</Pill>
+            <Pill>relevance {o.user_relevance}</Pill>
+            <Pill>audience {o.audience_fit}</Pill>
+            <Pill>competition {o.competition}</Pill>
+            <Pill kind={o.platform.split(" ")[0]}>{o.platform}</Pill>
+          </div>
+        </Card>
       ))}
-      {opps.length === 0 && <p className="muted">No opportunities yet.</p>}
     </>
   );
 }

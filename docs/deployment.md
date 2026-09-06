@@ -31,6 +31,10 @@ pgvector cutover is designed in `docs/database.md`.
 4. Framework preset: Next.js (auto-detected). Build: `npm run build`.
 5. Environment variable: `NEXT_PUBLIC_API_URL` = your backend public URL.
 6. Deploy. Verify: Overview, Opportunities and Agent pages load data.
+7. Backend CORS: after Vercel gives you the frontend URL, add it to the
+   backend's `CORS_ORIGINS` (comma-separated, e.g.
+   `CORS_ORIGINS=http://localhost:3000,https://signalcraft-web.vercel.app`)
+   and redeploy the API — otherwise browsers block the dashboard's requests.
 
 ## Backend — recommended hosts
 
