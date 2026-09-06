@@ -1,5 +1,10 @@
 """LLM subpackage exports."""
 from .gateway import LLMGateway
-from .providers import BaseProvider, MockProvider, OpenAICompatibleProvider
+from .prompts import render
+from .providers import (BaseProvider, MockProvider, OpenAICompatibleProvider,
+                        OpenRouterProvider)
+from .schemas import ContentBrief, CritiqueScores, TopicClassification, TrendVerdict
 
-__all__ = ["LLMGateway", "BaseProvider", "MockProvider", "OpenAICompatibleProvider"]
+__all__ = ["LLMGateway", "BaseProvider", "MockProvider", "OpenAICompatibleProvider",
+           "OpenRouterProvider", "render", "ContentBrief", "CritiqueScores",
+           "TopicClassification", "TrendVerdict"]

@@ -12,9 +12,11 @@ __all__ = ["Profile", "DEFAULT_PROFILE", "get_profile", "update_profile",
 DEFAULT_PROFILE = {
     "niche": "AI + Data Engineering",
     "expertise": "LLMs, AI agents, PySpark, open source",
+    "expertise_level": "Advanced",
     "audience": "Developers, students, data engineers",
     "goals": "Personal branding",
     "platforms": ["LinkedIn", "X", "Blog"],
+    "writing_style": "Technical + simple + professional",
     "tone": "Technical + simple + professional",
     "topics": ["AI agents", "LLMs", "Data engineering", "Open source", "PySpark"],
     "avoid_topics": ["Generic AI hype"],
@@ -29,9 +31,11 @@ class Profile:
     user_id: int = 1
     niche: str = ""
     expertise: str = ""
+    expertise_level: str = ""
     audience: str = ""
     goals: str = ""
     platforms: list[str] = field(default_factory=lambda: ["LinkedIn", "X", "Blog"])
+    writing_style: str = ""
     tone: str = ""
     topics: list[str] = field(default_factory=list)
     avoid_topics: list[str] = field(default_factory=list)
@@ -56,8 +60,10 @@ def get_profile(user_id: int = 1) -> Profile:
         return Profile(
             user_id=user_id,
             niche=row["niche"] or "", expertise=row["expertise"] or "",
+            expertise_level=row["expertise_level"] or "",
             audience=row["audience"] or "", goals=row["goals"] or "",
             platforms=json.loads(row["platforms"] or '["LinkedIn","X","Blog"]'),
+            writing_style=row["writing_style"] or "",
             tone=row["tone"] or "",
             topics=json.loads(row["topics"] or "[]"),
             avoid_topics=json.loads(row["avoid_topics"] or "[]"),
@@ -70,7 +76,8 @@ def get_profile(user_id: int = 1) -> Profile:
 
 
 def update_profile(user_id: int = 1, **fields) -> Profile:
-    allowed = {"niche", "expertise", "audience", "goals", "platforms",
+    allowed = {"niche", "expertise", "expertise_level", "audience", "goals",
+               "platforms", "writing_style",
                "tone", "topics", "avoid_topics", "style_notes",
                "content_preferences", "posting_preferences"}
     cols, vals = [], []

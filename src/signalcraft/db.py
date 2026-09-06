@@ -1,18 +1,31 @@
-"""SQLite source of truth. Stdlib only, WAL mode, explicit schema."""
+"""SQLite source of truth (§6 entities, UUIDs, timestamps, indexes, migrations).
+
+Entity names follow prompt1 §6: users, profiles, audiences, topics,
+research_documents, trend_signals, content_opportunities, recommendations,
+content, content_versions, content_performance, calendar_items,
+agent_memories, llm_requests.
+"""
 from __future__ import annotations
 
 import sqlite3
+import uuid as _uuid
 from pathlib import Path
 
 from .config import settings
 
-__all__ = ["SCHEMA", "get_conn", "init_db"]
+__all__ = ["SCHEMA", "get_conn", "init_db", "new_uuid"]
+
+
+def new_uuid() -> str:
+    return str(_uuid.uuid4())
+
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
 
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     name TEXT NOT NULL DEFAULT 'Creator',
     email TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -20,12 +33,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     niche TEXT NOT NULL DEFAULT '',
     expertise TEXT NOT NULL DEFAULT '',
+    expertise_level TEXT NOT NULL DEFAULT '',
     audience TEXT NOT NULL DEFAULT '',
     goals TEXT NOT NULL DEFAULT '',
     platforms TEXT NOT NULL DEFAULT '["LinkedIn","X","Blog"]',
+    writing_style TEXT NOT NULL DEFAULT '',
     tone TEXT NOT NULL DEFAULT '',
     topics TEXT NOT NULL DEFAULT '[]',
     avoid_topics TEXT NOT NULL DEFAULT '[]',
@@ -37,6 +53,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 CREATE TABLE IF NOT EXISTS audiences (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
@@ -46,6 +63,7 @@ CREATE TABLE IF NOT EXISTS audiences (
 
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'tracked',
@@ -53,39 +71,53 @@ CREATE TABLE IF NOT EXISTS topics (
     UNIQUE(user_id, name)
 );
 
-CREATE TABLE IF NOT EXISTS research_items (
+CREATE TABLE IF NOT EXISTS research_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
     source TEXT NOT NULL,
+    source_type TEXT NOT NULL DEFAULT 'rss',
     source_url TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL,
     summary TEXT NOT NULL DEFAULT '',
+    keywords TEXT NOT NULL DEFAULT '[]',
+    topic TEXT NOT NULL DEFAULT '',
     published_at TEXT NOT NULL DEFAULT (datetime('now')),
+    retrieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    relevance REAL NOT NULL DEFAULT 0,
+    freshness REAL NOT NULL DEFAULT 0,
     niche_tags TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(source, source_url, title)
 );
 
-CREATE TABLE IF NOT EXISTS trends (
+CREATE TABLE IF NOT EXISTS trend_signals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
     topic TEXT NOT NULL,
     freshness REAL NOT NULL DEFAULT 0,
     growth REAL NOT NULL DEFAULT 0,
     relevance REAL NOT NULL DEFAULT 0,
-    audience_fit REAL NOT NULL DEFAULT 0,
+    source_momentum REAL NOT NULL DEFAULT 0,
     novelty REAL NOT NULL DEFAULT 0,
+    audience_fit REAL NOT NULL DEFAULT 0,
     competition REAL NOT NULL DEFAULT 0,
-    creator_fit REAL NOT NULL DEFAULT 0,
-    score REAL NOT NULL DEFAULT 0,
+    trend_score REAL NOT NULL DEFAULT 0,
     evidence TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS opportunities (
+CREATE TABLE IF NOT EXISTS content_opportunities (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
     topic TEXT NOT NULL,
+    trend_score REAL NOT NULL DEFAULT 0,
+    user_relevance REAL NOT NULL DEFAULT 0,
+    audience_fit REAL NOT NULL DEFAULT 0,
+    freshness REAL NOT NULL DEFAULT 0,
+    competition REAL NOT NULL DEFAULT 0,
     why_now TEXT NOT NULL DEFAULT '',
     why_you TEXT NOT NULL DEFAULT '',
     audience TEXT NOT NULL DEFAULT '',
@@ -99,32 +131,37 @@ CREATE TABLE IF NOT EXISTS opportunities (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS content_items (
+CREATE TABLE IF NOT EXISTS content (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
-    opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL,
+    opportunity_id INTEGER REFERENCES content_opportunities(id) ON DELETE SET NULL,
     platform TEXT NOT NULL,
     title TEXT NOT NULL DEFAULT '',
     body TEXT NOT NULL,
     hook TEXT NOT NULL DEFAULT '',
     cta TEXT NOT NULL DEFAULT '',
     quality_score REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS content_versions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    content_id INTEGER NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+    uuid TEXT NOT NULL DEFAULT '',
+    content_id INTEGER NOT NULL REFERENCES content(id) ON DELETE CASCADE,
     version INTEGER NOT NULL,
+    brief TEXT NOT NULL DEFAULT '{}',
     body TEXT NOT NULL,
     critique TEXT NOT NULL DEFAULT '',
     score REAL NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS performance (
+CREATE TABLE IF NOT EXISTS content_performance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    content_id INTEGER NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+    uuid TEXT NOT NULL DEFAULT '',
+    content_id INTEGER NOT NULL REFERENCES content(id) ON DELETE CASCADE,
     platform TEXT NOT NULL DEFAULT '',
     impressions INTEGER NOT NULL DEFAULT 0,
     likes INTEGER NOT NULL DEFAULT 0,
@@ -134,11 +171,13 @@ CREATE TABLE IF NOT EXISTS performance (
     saves INTEGER NOT NULL DEFAULT 0,
     reach INTEGER NOT NULL DEFAULT 0,
     engagement_rate REAL NOT NULL DEFAULT 0,
+    performance_score REAL NOT NULL DEFAULT 0,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS memories (
+CREATE TABLE IF NOT EXISTS agent_memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
     kind TEXT NOT NULL,
     key TEXT NOT NULL,
@@ -151,6 +190,7 @@ CREATE TABLE IF NOT EXISTS memories (
 
 CREATE TABLE IF NOT EXISTS llm_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
     task TEXT NOT NULL DEFAULT '',
@@ -162,10 +202,11 @@ CREATE TABLE IF NOT EXISTS llm_requests (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS calendar_entries (
+CREATE TABLE IF NOT EXISTS calendar_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1,
-    content_id INTEGER REFERENCES content_items(id) ON DELETE SET NULL,
+    content_id INTEGER REFERENCES content(id) ON DELETE SET NULL,
     platform TEXT NOT NULL DEFAULT '',
     scheduled_for TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'draft',
@@ -174,30 +215,114 @@ CREATE TABLE IF NOT EXISTS calendar_entries (
 
 CREATE TABLE IF NOT EXISTS recommendations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL DEFAULT '',
     user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
-    opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL,
+    opportunity_id INTEGER REFERENCES content_opportunities(id) ON DELETE SET NULL,
     reason TEXT NOT NULL DEFAULT '',
     rank INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'suggested',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_research_user ON research_documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_trends_user ON trend_signals(user_id);
+CREATE INDEX IF NOT EXISTS idx_opps_user ON content_opportunities(user_id);
+CREATE INDEX IF NOT EXISTS idx_content_user ON content(user_id);
+CREATE INDEX IF NOT EXISTS idx_perf_content ON content_performance(content_id);
+CREATE INDEX IF NOT EXISTS idx_mem_user ON agent_memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_llm_task ON llm_requests(task);
 """
+
+# Legacy (pre-prompt1) table names -> §6 names.
+LEGACY_RENAMES = {
+    "research_items": "research_documents",
+    "trends": "trend_signals",
+    "opportunities": "content_opportunities",
+    "content_items": "content",
+    "performance": "content_performance",
+    "memories": "agent_memories",
+    "calendar_entries": "calendar_items",
+}
+
+# Columns that may be missing on renamed tables (name -> DDL).
+EXTRA_COLUMNS: dict[str, list[str]] = {
+    "research_documents": [
+        "uuid TEXT NOT NULL DEFAULT ''", "source_type TEXT NOT NULL DEFAULT 'rss'",
+        "keywords TEXT NOT NULL DEFAULT '[]'", "topic TEXT NOT NULL DEFAULT ''",
+        "retrieved_at TEXT NOT NULL DEFAULT (datetime('now'))",
+        "relevance REAL NOT NULL DEFAULT 0", "freshness REAL NOT NULL DEFAULT 0",
+    ],
+    "trend_signals": [
+        "uuid TEXT NOT NULL DEFAULT ''", "source_momentum REAL NOT NULL DEFAULT 0",
+        "audience_fit REAL NOT NULL DEFAULT 0", "competition REAL NOT NULL DEFAULT 0",
+        "trend_score REAL NOT NULL DEFAULT 0",
+    ],
+    "content_opportunities": [
+        "uuid TEXT NOT NULL DEFAULT ''", "trend_score REAL NOT NULL DEFAULT 0",
+        "user_relevance REAL NOT NULL DEFAULT 0", "audience_fit REAL NOT NULL DEFAULT 0",
+        "freshness REAL NOT NULL DEFAULT 0", "competition REAL NOT NULL DEFAULT 0",
+    ],
+    "content": ["uuid TEXT NOT NULL DEFAULT ''", "status TEXT NOT NULL DEFAULT 'draft'"],
+    "content_versions": ["uuid TEXT NOT NULL DEFAULT ''", "brief TEXT NOT NULL DEFAULT '{}'"],
+    "content_performance": ["uuid TEXT NOT NULL DEFAULT ''", "performance_score REAL NOT NULL DEFAULT 0"],
+    "agent_memories": ["uuid TEXT NOT NULL DEFAULT ''"],
+    "calendar_items": ["uuid TEXT NOT NULL DEFAULT ''"],
+    "llm_requests": ["uuid TEXT NOT NULL DEFAULT ''"],
+    "users": ["uuid TEXT NOT NULL DEFAULT ''"],
+    "profiles": [
+        "uuid TEXT NOT NULL DEFAULT ''", "expertise_level TEXT NOT NULL DEFAULT ''",
+        "writing_style TEXT NOT NULL DEFAULT ''", "content_preferences TEXT NOT NULL DEFAULT ''",
+        "posting_preferences TEXT NOT NULL DEFAULT ''",
+    ],
+    "recommendations": ["uuid TEXT NOT NULL DEFAULT ''"],
+}
+
+
+def _tables(conn: sqlite3.Connection) -> set[str]:
+    return {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+
+
+def _backfill_uuids(conn: sqlite3.Connection) -> None:
+    for (table,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+            " AND sql LIKE '%uuid TEXT%'").fetchall():
+        rows = conn.execute(f"SELECT id FROM {table} WHERE uuid=''").fetchall()
+        for (rid,) in rows:
+            conn.execute(f"UPDATE {table} SET uuid=? WHERE id=?", (new_uuid(), rid))
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Additive migrations for DBs created by earlier MVP versions."""
-    cols = {r["name"] for r in conn.execute("PRAGMA table_info(profiles)").fetchall()}
-    if "content_preferences" not in cols:
-        conn.execute("ALTER TABLE profiles ADD COLUMN content_preferences TEXT NOT NULL DEFAULT ''")
-    if "posting_preferences" not in cols:
-        conn.execute("ALTER TABLE profiles ADD COLUMN posting_preferences TEXT NOT NULL DEFAULT ''")
-    tcols = {r["name"] for r in conn.execute("PRAGMA table_info(trends)").fetchall()}
-    for c in ("audience_fit", "competition", "creator_fit"):
-        if c not in tcols:
-            conn.execute(f"ALTER TABLE trends ADD COLUMN {c} REAL NOT NULL DEFAULT 0")
-    pcols = {r["name"] for r in conn.execute("PRAGMA table_info(performance)").fetchall()}
-    if "reach" not in pcols:
-        conn.execute("ALTER TABLE performance ADD COLUMN reach INTEGER NOT NULL DEFAULT 0")
+    """Rename legacy tables, add §6 columns, backfill UUIDs."""
+    tables = _tables(conn)
+    for old, new in LEGACY_RENAMES.items():
+        if old in tables and new not in tables:
+            conn.execute(f"ALTER TABLE {old} RENAME TO {new}")
+    # content_versions.score already exists from earlier MVP; keep.
+    for table, ddls in EXTRA_COLUMNS.items():
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        for ddl in ddls:
+            col = ddl.split()[0]
+            if col not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+    _backfill_uuids(conn)
+    # recommendations created pre-prompt1 references the old opportunities table.
+    rec = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE name='recommendations'").fetchone()
+    if rec and "REFERENCES opportunities(" in (rec[0] or ""):
+        conn.execute("DROP TABLE recommendations")
+        conn.execute("""
+        CREATE TABLE recommendations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT NOT NULL DEFAULT '',
+            user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
+            opportunity_id INTEGER REFERENCES content_opportunities(id) ON DELETE SET NULL,
+            reason TEXT NOT NULL DEFAULT '',
+            rank INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'suggested',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )""")
+        _backfill_uuids(conn)
 
 
 def get_conn(db_path: Path | None = None) -> sqlite3.Connection:
@@ -216,11 +341,11 @@ def init_db(db_path: Path | None = None) -> Path:
     try:
         conn.executescript(SCHEMA)
         _migrate(conn)
-        # seed default user + profile
         row = conn.execute("SELECT id FROM users WHERE id=1").fetchone()
         if row is None:
-            conn.execute("INSERT INTO users (id, name) VALUES (1, 'Creator')")
-            conn.execute("INSERT INTO profiles (user_id) VALUES (1)")
+            conn.execute("INSERT INTO users (id, uuid, name) VALUES (1, ?, 'Creator')",
+                         (new_uuid(),))
+            conn.execute("INSERT INTO profiles (uuid, user_id) VALUES (?, 1)", (new_uuid(),))
             conn.commit()
     finally:
         conn.close()

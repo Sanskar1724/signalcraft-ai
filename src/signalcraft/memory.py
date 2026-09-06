@@ -7,7 +7,7 @@ a real vector store can replace it later without changing callers.
 """
 from __future__ import annotations
 
-from .db import get_conn
+from .db import get_conn, new_uuid
 
 __all__ = ["VALID_KINDS", "remember", "recall", "get_memory_boost",
            "semantic_recall", "remember_feedback", "learn_from_performance"]
@@ -26,12 +26,12 @@ def remember(user_id: int, kind: str, key: str, value: str, confidence: float = 
     conn = get_conn()
     try:
         conn.execute(
-            "INSERT INTO memories (user_id, kind, key, value, confidence, hits)"
-            " VALUES (?,?,?,?,?,1)"
+            "INSERT INTO agent_memories (uuid, user_id, kind, key, value, confidence, hits)"
+            " VALUES (?,?,?,?,?,?,1)"
             " ON CONFLICT(user_id, kind, key) DO UPDATE SET"
             " value=excluded.value, confidence=excluded.confidence,"
             " hits=hits+1, updated_at=datetime('now')",
-            (user_id, kind, key, value, confidence),
+            (new_uuid(), user_id, kind, key, value, confidence),
         )
         conn.commit()
     finally:
@@ -43,11 +43,11 @@ def recall(user_id: int = 1, kind: str | None = None, limit: int = 50) -> list[d
     try:
         if kind:
             rows = conn.execute(
-                "SELECT * FROM memories WHERE user_id=? AND kind=? ORDER BY hits DESC LIMIT ?",
+                "SELECT * FROM agent_memories WHERE user_id=? AND kind=? ORDER BY hits DESC LIMIT ?",
                 (user_id, kind, limit)).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM memories WHERE user_id=? ORDER BY hits DESC LIMIT ?",
+                "SELECT * FROM agent_memories WHERE user_id=? ORDER BY hits DESC LIMIT ?",
                 (user_id, limit)).fetchall()
         return [dict(r) for r in rows]
     finally:
@@ -73,7 +73,7 @@ def get_memory_boost(user_id: int, topic: str) -> float:
 
 
 def semantic_recall(user_id: int, query: str, limit: int = 5) -> list[dict]:
-    """Rank memories by cosine similarity to the query using local embeddings."""
+    """Rank agent_memories by cosine similarity to the query using local embeddings."""
     from .llm import LLMGateway
     gateway = LLMGateway()
     q = gateway.embed(query)

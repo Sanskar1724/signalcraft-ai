@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 
-from ..db import get_conn
+from ..db import get_conn, new_uuid
 from ..llm import LLMGateway
+from ..llm.prompts import render
+from ..llm.schemas import ContentBrief
 from ..memory import recall
 from ..observability import Trace
 from ..profiles import get_profile
@@ -21,13 +23,43 @@ from .platforms import format_blog, format_linkedin, format_x
 MAX_BODY = 6000
 
 
-def _strategy_text(gateway: LLMGateway, profile, opp: dict) -> str:
-    prompt = (
-        f"Niche: {profile.niche}. Audience: {profile.audience}. Tone: {profile.tone}. "
-        f"Topic: {opp.get('topic')}. Angle: {opp.get('angle')}. "
-        f"Write a useful core paragraph (120-180 words): one claim, one example, one takeaway. "
-        f"No hype, no invented statistics."
+def _evidence_titles(opp: dict) -> list[str]:
+    """Resolve stored research refs to titles (§33 provenance)."""
+    import json as _json
+    refs = opp.get("research_refs") or "[]"
+    try:
+        ids = _json.loads(refs) if isinstance(refs, str) else list(refs)
+    except Exception:
+        return []
+    if not ids:
+        return []
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            f"SELECT title FROM research_documents WHERE id IN ({','.join('?' * len(ids))})",
+            ids).fetchall()
+        return [r["title"] for r in rows]
+    finally:
+        conn.close()
+
+
+def build_brief(profile, opp: dict, evidence_titles: list[str]) -> ContentBrief:
+    """Structured content brief (§13) built deterministically, LLM drafts from it."""
+    return ContentBrief(
+        topic=opp.get("topic", ""),
+        target_audience=opp.get("audience", profile.audience),
+        platform=opp.get("platform", "LinkedIn"),
+        core_message=opp.get("angle", ""),
+        angle=opp.get("angle", ""),
+        supporting_evidence=evidence_titles[:3],
+        cta="What is working for you?",
+        tone=profile.tone,
+        things_to_avoid=profile.avoid_topics,
     )
+
+
+def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str) -> str:
+    prompt = render("content_strategy", brief=brief.model_dump_json(), tone=tone or "clear")
     core = gateway.generate(prompt, task="generation", max_tokens=400).strip()
     # Strip mock prefix so UI reads clean; keep provenance in version row instead.
     if core.startswith("[Mock draft"):
@@ -42,7 +74,7 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     profile = get_profile(user_id)
     conn = get_conn()
     try:
-        opp = conn.execute("SELECT * FROM opportunities WHERE id=? AND user_id=?",
+        opp = conn.execute("SELECT * FROM content_opportunities WHERE id=? AND user_id=?",
                            (opportunity_id, user_id)).fetchone()
         if opp is None:
             raise ValueError(f"opportunity {opportunity_id} not found")
@@ -55,7 +87,11 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     trace.add("creator_context", {"niche": profile.niche, "tone": profile.tone,
                                   "memory": [m["key"] for m in recall(user_id, limit=5)]})
 
-    core = _strategy_text(gateway, profile, opp)
+    evidence = _evidence_titles(opp)
+    brief = build_brief(profile, {**opp, "platform": platform}, evidence)
+    trace.add("brief", brief.model_dump())
+
+    core = _strategy_text(gateway, brief, profile.tone)
     trace.add("strategy", core[:200])
 
     fmt = {"LinkedIn": format_linkedin, "X": format_x, "Blog": format_blog}.get(platform, format_linkedin)
@@ -66,9 +102,14 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     result = critique(body, platform=platform, topic=opp["topic"])
     trace.add("critique", {"overall": result["overall"], "issues": result["issues"]})
 
-    if result["overall"] < 7.5:  # one bounded improvement, §13
+    from ..config import settings as _settings
+    threshold = _settings.quality_threshold
+    for _ in range(max(1, _settings.max_retries)):  # bounded revise loop (§15)
+        if result["overall"] >= threshold:
+            break
         fix = gateway.generate(
-            f"Improve this {platform} draft. Issues: {result['suggestion']}\n\nDraft:\n{body[:1500]}",
+            render("content_revision", platform=platform,
+                   issues=result["suggestion"], draft=body[:1500]),
             task="generation", max_tokens=500).strip()
         if fix.startswith("[Mock draft"):
             fix = fix.split("]", 1)[-1].strip()
@@ -84,20 +125,23 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     conn = get_conn()
     try:
         cur = conn.execute(
-            "INSERT INTO content_items (user_id, opportunity_id, platform, title, body, hook, cta, quality_score)"
-            " VALUES (?,?,?,?,?,?,?,?)",
-            (user_id, opportunity_id, platform, hook[:200], body, hook[:200],
+            "INSERT INTO content (uuid, user_id, opportunity_id, platform, title, body,"
+            " hook, cta, quality_score)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (new_uuid(), user_id, opportunity_id, platform, hook[:200], body, hook[:200],
              cta[:200], result["overall"]),
         )
         cid = cur.lastrowid
         conn.execute(
-            "INSERT INTO content_versions (content_id, version, body, critique, score)"
-            " VALUES (?,?,?,?,?)",
-            (cid, 1, body, json.dumps(result), result["overall"]),
+            "INSERT INTO content_versions (uuid, content_id, version, brief, body, critique, score)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (new_uuid(), cid, 1, brief.model_dump_json(), body,
+             json.dumps(result), result["overall"]),
         )
         conn.commit()
-        row = conn.execute("SELECT * FROM content_items WHERE id=?", (cid,)).fetchone()
-        return {"content": dict(row), "critique": result, "trace": trace.to_dict()}
+        row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
+        return {"content": dict(row), "critique": result, "brief": brief,
+                "trace": trace.to_dict()}
     finally:
         conn.close()
 
@@ -121,14 +165,14 @@ def list_content(user_id: int = 1, limit: int = 50, offset: int = 0,
     try:
         if platform:
             rows = conn.execute(
-                "SELECT c.*, o.topic AS opportunity_topic FROM content_items c"
-                " LEFT JOIN opportunities o ON o.id=c.opportunity_id"
+                "SELECT c.*, o.topic AS opportunity_topic FROM content c"
+                " LEFT JOIN content_opportunities o ON o.id=c.opportunity_id"
                 " WHERE c.user_id=? AND c.platform=? ORDER BY c.id DESC LIMIT ? OFFSET ?",
                 (user_id, platform, limit, offset)).fetchall()
         else:
             rows = conn.execute(
-                "SELECT c.*, o.topic AS opportunity_topic FROM content_items c"
-                " LEFT JOIN opportunities o ON o.id=c.opportunity_id"
+                "SELECT c.*, o.topic AS opportunity_topic FROM content c"
+                " LEFT JOIN content_opportunities o ON o.id=c.opportunity_id"
                 " WHERE c.user_id=? ORDER BY c.id DESC LIMIT ? OFFSET ?",
                 (user_id, limit, offset)).fetchall()
         return [dict(r) for r in rows]

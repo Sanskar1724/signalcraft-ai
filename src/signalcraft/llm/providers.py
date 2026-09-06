@@ -1,10 +1,12 @@
-"""LLM provider abstraction. Mock works offline; OpenAI-compatible is optional."""
+"""LLM provider abstraction (§21). Mock works offline; OpenRouter is the
+initial live provider; OpenAI-compatible covers the rest. App code must use
+LLMGateway, never a provider directly."""
 from __future__ import annotations
 
 import hashlib
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 
@@ -17,6 +19,7 @@ class LLMResult:
     latency_ms: int
     prompt_tokens: int
     completion_tokens: int
+    cost_usd: float = 0.0
 
 
 class BaseProvider:
@@ -96,3 +99,47 @@ class OpenAICompatibleProvider(BaseProvider):
             int(usage.get("prompt_tokens", _tokens(prompt))),
             int(usage.get("completion_tokens", _tokens(text))),
         )
+
+
+class OpenRouterProvider(BaseProvider):
+    """Initial live provider (§21): OpenRouter chat completions + cost tracking."""
+
+    name = "openrouter"
+
+    # Approximate $/1K tokens (prompt, completion); refined from API usage when present.
+    PRICE_PER_1K = {
+        "openai/gpt-4o-mini": (0.00015, 0.0006),
+        "openai/gpt-4o": (0.0025, 0.01),
+        "anthropic/claude-3-5-sonnet": (0.003, 0.015),
+        "google/gemini-flash-1.5": (0.000075, 0.0003),
+    }
+
+    def __init__(self, api_key: str, base_url: str, model: str = "openai/gpt-4o-mini"):
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+
+    def _cost(self, pt: int, ct: int) -> float:
+        pr, cr = self.PRICE_PER_1K.get(self.model, (0.001, 0.003))
+        return round(pt / 1000 * pr + ct / 1000 * cr, 6)
+
+    def generate(self, prompt: str, task: str = "generation", max_tokens: int = 800) -> LLMResult:
+        t0 = time.time()
+        resp = requests.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}",
+                     "HTTP-Referer": "https://signalcraft.ai",
+                     "X-Title": "SignalCraft AI"},
+            json={"model": self.model,
+                  "messages": [{"role": "user", "content": prompt}],
+                  "max_tokens": max_tokens, "temperature": 0.7},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
+        pt = int(usage.get("prompt_tokens", _tokens(prompt)))
+        ct = int(usage.get("completion_tokens", _tokens(text)))
+        return LLMResult(text, "openrouter", self.model,
+                         int((time.time() - t0) * 1000), pt, ct, self._cost(pt, ct))

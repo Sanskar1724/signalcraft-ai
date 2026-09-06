@@ -1,11 +1,17 @@
-"""Performance analytics (§15-§16). Manual entry MVP, deterministic insights."""
+"""Performance analytics (§17-§18). Manual entry MVP, deterministic insights.
+
+Content Performance Score: reach-weighted engagement,
+  performance_score = min(100, engagement_rate * (1 + min(1, impressions/10000)))
+documented and testable — no black boxes.
+"""
 from __future__ import annotations
 
 from statistics import mean
 
-from .db import get_conn
+from .db import get_conn, new_uuid
 
-__all__ = ["engagement_rate", "record_performance", "summary", "insights"]
+__all__ = ["engagement_rate", "performance_score", "record_performance",
+           "summary", "insights"]
 
 
 def engagement_rate(impressions: int, likes: int, comments: int,
@@ -13,6 +19,10 @@ def engagement_rate(impressions: int, likes: int, comments: int,
     if impressions <= 0:
         return 0.0
     return round(100 * (likes + comments + shares + saves + clicks) / impressions, 2)
+
+
+def performance_score(impressions: int, engagement: float) -> float:
+    return round(min(100.0, engagement * (1 + min(1.0, impressions / 10000))), 2)
 
 
 def record_performance(content_id: int, platform: str = "", impressions: int = 0,
@@ -24,17 +34,19 @@ def record_performance(content_id: int, platform: str = "", impressions: int = 0
         if v < 0:
             raise ValueError(f"{name} must be >= 0")
     er = engagement_rate(impressions, likes, comments, shares, saves, clicks)
+    ps = performance_score(impressions, er)
     conn = get_conn()
     try:
         conn.execute(
-            "INSERT INTO performance (content_id, platform, impressions, likes, comments,"
-            " shares, clicks, saves, reach, engagement_rate) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (content_id, platform, impressions, likes, comments, shares, clicks, saves,
-             reach, er),
+            "INSERT INTO content_performance (uuid, content_id, platform, impressions,"
+            " likes, comments, shares, clicks, saves, reach, engagement_rate,"
+            " performance_score) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (new_uuid(), content_id, platform, impressions, likes, comments, shares,
+             clicks, saves, reach, er, ps),
         )
         conn.commit()
-        row = conn.execute("SELECT * FROM performance WHERE content_id=? ORDER BY id DESC LIMIT 1",
-                           (content_id,)).fetchone()
+        row = conn.execute("SELECT * FROM content_performance WHERE content_id=?"
+                           " ORDER BY id DESC LIMIT 1", (content_id,)).fetchone()
         return dict(row)
     finally:
         conn.close()
@@ -48,10 +60,12 @@ def summary(user_id: int = 1) -> dict:
             " COALESCE(p.impressions,0) AS impressions, COALESCE(p.likes,0) AS likes,"
             " COALESCE(p.comments,0) AS comments, COALESCE(p.shares,0) AS shares,"
             " COALESCE(p.reach,0) AS reach,"
-            " COALESCE(p.engagement_rate,0) AS engagement_rate"
-            " FROM content_items c LEFT JOIN opportunities o ON o.id=c.opportunity_id"
-            " LEFT JOIN (SELECT content_id, MAX(id) AS mid FROM performance GROUP BY content_id) latest"
-            " ON latest.content_id=c.id LEFT JOIN performance p ON p.id=latest.mid"
+            " COALESCE(p.engagement_rate,0) AS engagement_rate,"
+            " COALESCE(p.performance_score,0) AS performance_score"
+            " FROM content c LEFT JOIN content_opportunities o ON o.id=c.opportunity_id"
+            " LEFT JOIN (SELECT content_id, MAX(id) AS mid FROM content_performance"
+            " GROUP BY content_id) latest"
+            " ON latest.content_id=c.id LEFT JOIN content_performance p ON p.id=latest.mid"
             " WHERE c.user_id=? ORDER BY c.id DESC LIMIT 100", (user_id,)).fetchall()]
     finally:
         conn.close()
@@ -69,6 +83,7 @@ def summary(user_id: int = 1) -> dict:
     by_topic = agg("topic")
     by_platform = agg("platform")
     by_hook = agg("hook")
+    top_content = sorted(rows, key=lambda r: r.get("performance_score", 0), reverse=True)[:5]
     return {
         "posts": len(rows),
         "rows": rows,
@@ -80,6 +95,8 @@ def summary(user_id: int = 1) -> dict:
         "weak_formats": by_platform[-3:][::-1] if len(by_platform) > 1 else [],
         "best_hooks": by_hook[:3],
         "weak_hooks": by_hook[-3:][::-1] if len(by_hook) > 1 else [],
+        "top_content": [{"id": r["id"], "title": r["title"],
+                         "performance_score": r["performance_score"]} for r in top_content],
     }
 
 
