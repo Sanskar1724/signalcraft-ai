@@ -29,7 +29,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ limit, use_live: true }),
     }),
-  generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string }) =>
+  generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string; style_match?: boolean; grounded?: boolean }) =>
     req<GenerateResult>("/api/content/generate", {
       method: "POST",
       body: JSON.stringify({ opportunity_id, platform, ...opts }),
@@ -119,6 +119,7 @@ export interface TrendSignal {
   audience_fit: number;
   competition: number;
   trend_score: number;
+  evidence_titles?: string[];
 }
 
 export interface Opportunity {

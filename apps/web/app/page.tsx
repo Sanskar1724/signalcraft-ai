@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Logo from "../components/Logo";
 import { GitHubIcon } from "../components/Navbar";
 import Navbar from "../components/Navbar";
 import SignalField from "../components/SignalField";
 import { Reveal } from "../components/fx";
+import { api } from "../lib/api";
 
 function Section({ id, kicker, title, children }: { id: string; kicker: string; title: string; children: React.ReactNode }) {
   return (
@@ -20,11 +21,82 @@ function Section({ id, kicker, title, children }: { id: string; kicker: string; 
   );
 }
 
+function useCountUp(target: number, run: boolean, ms = 1200) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setN(target);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / ms);
+      setN(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [run, target, ms]);
+  return n;
+}
+
+function useInView<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        setInView(true);
+        io.disconnect();
+      }
+    }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return { ref, inView };
+}
+
+function MetricBand() {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const a = useCountUp(93, inView);
+  const b = useCountUp(7, inView);
+  const c = useCountUp(24, inView);
+  return (
+    <div className="grid3" ref={ref}>
+      <div className="metric hot"><b>{a}</b><span>avg opportunity score</span></div>
+      <div className="metric"><b>{b}</b><span>signals tracked daily</span></div>
+      <div className="metric"><b>+{c}%</b><span>typical engagement lift</span></div>
+    </div>
+  );
+}
+
+function LiveTicker() {
+  const [topics, setTopics] = useState<string[]>([]);
+  useEffect(() => {
+    api.trends(8).then((t) => setTopics(t.map((x) => x.topic))).catch(() => setTopics([]));
+  }, []);
+  if (!topics.length) return null;
+  const row = [...topics, ...topics];
+  return (
+    <div className="ticker" aria-label="Live trends">
+      <div className="tickerin">
+        {row.map((t, i) => (
+          <span key={i} className="pill">▲ {t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const PLAT_EXAMPLES: Record<string, string> = {
   LinkedIn:
-    "AI agents in data pipelines: what changed.\n\nTeams now scaffold ETL with tool-calling agents — with human review gates.\n\nTakeaway: automate the boilerplate, keep the judgment.\n\nWhat is working for you?",
-  X: "1/ AI agents in data pipelines in one line: automate the boring parts, review the rest.\n\n2/ Context: tool-calling agents now scaffold ETL reliably.\n\n3/ Takeaway: try it on one backfill this week.",
-  Blog: "# AI Agents in Data Pipelines: a practical guide\n\n> Angle: automate the boilerplate, keep the judgment.\n\n## Why now\nTool-calling agents crossed from demos to daily ETL work…",
+    "AI agents in data pipelines: what changed.\n\nTeams now scaffold ETL with tool-calling agents — with human review gates.\n\nTakeaway: automate the boilerplate, keep the judgment.",
+  X: "1/ AI agents in data pipelines: automate the boring parts, review the rest.\n\n2/ Tool-calling agents now scaffold ETL reliably.\n\n3/ Try it on one backfill this week.",
+  Blog: "# AI Agents in Data Pipelines\n\nWhy now, how it works, and one experiment to run this week.",
 };
 
 function PlatformTabs() {
@@ -62,26 +134,19 @@ export default function Landing() {
             Explore GitHub
           </a>
         </div>
+        <LiveTicker />
 
         <div className="heroviz">
           <div className="floatcard">
             <p className="lbl">SignalCraft · Good morning, Sankiyy</p>
             <p className="lbl" style={{ marginTop: 10 }}>Trending for you</p>
-            <h3>AI Agents + Data Engineering</h3>
+            <h3>AI Agents + Data Engineering — <span style={{ color: "var(--accent)" }}>93</span></h3>
             <div className="score"><span>Trend</span><b>94</b></div>
             <div className="score"><span>Audience Fit</span><b>97</b></div>
             <div className="score"><span>Freshness</span><b>96</b></div>
-            <div className="score"><span>Opportunity</span><b style={{ color: "var(--accent)" }}>93</b></div>
             <p className="muted">“How AI agents are changing data pipeline development.”</p>
             <Link href="/signup" className="btn small">Generate Content</Link>
           </div>
-        </div>
-
-        <div className="signalstrip">
-          <span className="pill li">Real-time Intelligence</span>
-          <span className="pill x">Personal Strategy</span>
-          <span className="pill blog">Multi-platform Creation</span>
-          <span className="pill good">Performance Learning</span>
         </div>
       </section>
 
@@ -89,104 +154,52 @@ export default function Landing() {
         <div className="grid2">
           <div className="card">
             <p className="lbl">Generic path</p>
-            <p className="muted">Prompt → Generic AI output → Generic content → No strategy → No learning</p>
+            <p className="muted">Prompt → generic output → no strategy → no learning.</p>
           </div>
           <div className="card glow">
             <p className="lbl">SignalCraft path</p>
-            <p>You + Your audience + Current trends + Your performance = <b>Personalized content intelligence</b></p>
+            <p>You + audience + live trends + your performance = <b>personal intelligence</b>.</p>
           </div>
         </div>
       </Section>
 
-      <Section id="how" kicker="How it works" title="A product story in five steps.">
-        {[
-          ["01", "Understand You", "Niche, audience, goals, style, history — captured once, used everywhere."],
-          ["02", "Understand What Is Happening", "Fresh research from RSS, search and community sources, deduplicated."],
-          ["03", "Find Your Opportunity", "Trends scored for you specifically, each with its reason."],
-          ["04", "Create What Matters", "Brief-led drafts per platform, critiqued and revised."],
-          ["05", "Learn What Works", "Performance becomes memory that re-ranks everything next."],
-        ].map(([n, t, d]) => (
-          <div className="howstep" key={n}>
-            <span className="num">{n}</span>
-            <div><h3>{t}</h3><p className="muted">{d}</p></div>
-          </div>
-        ))}
-      </Section>
-
-      <Section id="intelligence" kicker="Trend intelligence" title="Don't chase trends. Find your opportunity.">
-        <div className="card glow">
-          <p className="lbl">Trending for you</p>
-          <h3>AI Agents + Data Engineering</h3>
-          <div className="dims">
-            <span>Trend Score <b>94</b></span><span>Audience Fit <b>97</b></span>
-            <span>Freshness <b>96</b></span><span>Competition <b>Medium</b></span>
-          </div>
-          <p><b>Opportunity Score — 93.</b> Strong alignment with your niche and current audience interest.</p>
-          <p className="muted">Recommended angle: “How AI agents are changing data pipeline development.”</p>
-          <Link href="/signup" className="btn small">Create Content</Link>
+      <Section id="how" kicker="How it works" title="Five steps, one loop.">
+        <MetricBand />
+        <div style={{ marginTop: 18 }}>
+          {[
+            ["01", "Understand You", "Niche, audience, goals, style — captured once, used everywhere."],
+            ["02", "Track the World", "Fresh research, deduplicated and scored for you."],
+            ["03", "Find Your Opportunity", "Ranked topics, each with its reason."],
+            ["04", "Create Native Drafts", "Brief-led LinkedIn, X and Blog output with critique."],
+            ["05", "Learn What Works", "Performance becomes memory that re-ranks everything."],
+          ].map(([n, t, d]) => (
+            <div className="howstep" key={n}>
+              <span className="num">{n}</span>
+              <div><h3>{t}</h3><p className="muted">{d}</p></div>
+            </div>
+          ))}
         </div>
       </Section>
 
-      <Section id="generation" kicker="Content generation" title="One idea, three native voices.">
+      <Section id="intelligence" kicker="Live demo" title="Try the voices, then make them yours.">
         <PlatformTabs />
       </Section>
 
-      <Section id="brain" kicker="Personal content brain" title="SignalCraft learns what works for you.">
-        <div className="card">
-          <p className="lbl">Your content brain</p>
-          {[["Writing Style", "Technical + Simple"], ["Best Topic", "AI Agents"], ["Best Format", "Project Story"],
-            ["Best Platform", "LinkedIn"], ["Audience", "Developers"], ["Strong Pattern", "Technical storytelling"]].map(([k, v]) => (
-            <div className="braintile" key={k}><span className="muted">{k}</span><b>{v}</b></div>
-          ))}
-        </div>
-      </Section>
-
-      <Section id="analytics" kicker="Performance learning" title="Content → performance → insight → memory.">
-        <div className="card">
-          {[["AI Agents", 96], ["Data Engineering", 72], ["Generic AI News", 24]].map(([t, w]) => (
-            <div key={t as string}>
-              <p style={{ margin: "8px 0 2px", fontSize: 13 }}>{t}</p>
-              <div className="bar"><i style={{ width: `${w}%` }} /></div>
-            </div>
-          ))}
-          <p style={{ marginTop: 14 }}><b>AI insight.</b> <span className="muted">Technical AI content is outperforming generic AI news for your audience. Create more technical story-driven content.</span></p>
-        </div>
-      </Section>
-
-      <Section id="agent" kicker="AI agent" title="Just ask your content agent.">
+      <Section id="agent" kicker="AI agent" title="Just ask. It knows your data.">
         <div className="agentmock">
           <div className="q"><b>You:</b> What should I post today?</div>
-          <div className="a">I found three opportunities aligned with your audience. The strongest is AI agents in data engineering.</div>
-          <div className="q"><b>You:</b> Make it technical.</div>
-          <div className="a">Here&apos;s a technical LinkedIn angle…</div>
+          <div className="a">Three opportunities fit your audience. Strongest: AI agents in data engineering (91/100).</div>
           <div className="q"><b>You:</b> Turn it into an X thread.</div>
-          <div className="a">Done.</div>
-        </div>
-      </Section>
-
-      <Section id="preview" kicker="Dashboard preview" title="Your morning briefing, in one screen.">
-        <div className="browser">
-          <div className="browserbar"><i /><i /><i /></div>
-          <div className="browserbody">
-            <p className="lbl">Overview · Good morning, Sankiyy</p>
-            <div className="grid3">
-              <div className="metric"><b>+24%</b><span>engagement</span></div>
-              <div className="metric"><b>12</b><span>opportunities</span></div>
-              <div className="metric"><b>18</b><span>posts this month</span></div>
-            </div>
-            <p style={{ marginTop: 12 }}><b>Trending for you:</b> <span className="muted">AI Agents · AI + Data Pipelines · LLM Infrastructure</span></p>
-            <p><b>AI insight:</b> <span className="muted">Your technical AI posts are performing above your average.</span></p>
-          </div>
+          <div className="a">Done — check Create.</div>
         </div>
       </Section>
 
       <section className="landsec center">
         <Reveal>
           <h2 className="landh">Stop guessing what to post.</h2>
-          <p className="lede">Let SignalCraft research, strategize, create, and learn with you.</p>
+          <p className="lede">Two-minute setup. Your first briefing today.</p>
           <div className="row" style={{ justifyContent: "center" }}>
             <Link href="/signup" className="btn">Start Creating</Link>
-            <a href="https://github.com/Sanskar1724/signalcraft-ai" target="_blank" rel="noreferrer" className="btn ghost">Explore GitHub</a>
           </div>
         </Reveal>
       </section>
@@ -200,8 +213,7 @@ export default function Landing() {
           <div>
             <b>Product</b>
             <a href="#product">Features</a>
-            <a href="#intelligence">Intelligence</a>
-            <a href="#analytics">Analytics</a>
+            <a href="#intelligence">Live demo</a>
             <a href="#agent">Agent</a>
           </div>
           <div>

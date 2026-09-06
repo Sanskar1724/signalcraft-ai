@@ -139,9 +139,10 @@ async def put_profile(body: ProfileUpdate, user_id: int = Depends(get_user_id)) 
 async def get_trends(top_n: int = 10, sort: str = "for_you",
                      user_id: int = Depends(get_user_id)) -> list:
     rows = [
-        {k: t.get(k, 0) if k != "topic" else t["topic"]
+        {k: (t.get(k, 0) if k not in ("topic", "evidence_titles") else t.get(k))
          for k in ("topic", "freshness", "growth", "relevance", "source_momentum",
-                   "novelty", "audience_fit", "competition", "trend_score")}
+                   "novelty", "audience_fit", "competition", "trend_score",
+                   "evidence_titles")}
         for t in trend.list(user_id, top_n * 2)
     ]
     key = {"rising": "growth", "latest": "freshness"}.get(sort, "trend_score")
@@ -165,7 +166,8 @@ async def post_research(body: ResearchRun, user_id: int = Depends(get_user_id)) 
 @router.post("/content/generate")
 async def post_generate(body: GenerateIn, user_id: int = Depends(get_user_id)) -> dict:
     return content.generate(body.opportunity_id, body.platform, user_id,
-                            tone=body.tone, length=body.length)
+                            tone=body.tone, length=body.length,
+                            style_match=body.style_match, grounded=body.grounded)
 
 
 @router.post("/content/critique")

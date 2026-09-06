@@ -17,13 +17,9 @@ const FREQS = ["1–2 / week", "3–5 / week", "Daily", "Flexible"];
 const PLATFORMS = ["LinkedIn", "X", "Blog", "Newsletter"];
 
 const META = [
-  ["About you", "Your name, role and a line about your work. This is who the strategist works for."],
-  ["Expertise", "Your niche, secondary topics and level. This focuses all research."],
-  ["Audience", "Who you create for. Recommendations are scored against them."],
-  ["Goals", "What winning looks like — pick all that apply, or add your own."],
-  ["Writing style", "How you want to sound. Combinations welcome — be specific."],
-  ["Content preferences", "Topics to embrace or avoid, formats you enjoy, posting rhythm."],
-  ["Platforms", "Where SignalCraft should write for. Start with three, expand later."],
+  ["You & your expertise", "Who you are and what you know. This focuses all research on your world."],
+  ["Audience & goals", "Who you create for and what winning looks like. Every recommendation is scored against this."],
+  ["Voice & rhythm", "How you sound, what you cover, where you publish. Generation follows this exactly."],
 ];
 
 function Chips({ options, value, onChange, multi = true }: {
@@ -78,21 +74,23 @@ export default function OnboardingPage() {
   }
 
   function collect(s: number): Record<string, unknown> {
-    switch (s) {
-      case 0: return { name: f.name, role: f.role, bio: f.bio, location: f.location };
-      case 1: return { niche: f.niche, secondary_topics: f.secondary_topics, expertise_level: f.expertise_level };
-      case 2: return { audience: f.audience, audience_segments: f.audience_segments };
-      case 3: return { goals: f.goals };
-      case 4: return { writing_style: f.writing_style, tone: f.tone, style_notes: f.style_notes };
-      case 5: return { topics: f.topics, avoid_topics: f.avoid_topics, formats: f.formats, frequency: f.frequency };
-      default: return { platforms: f.platforms };
+    if (s === 0) {
+      return { name: f.name, role: f.role, bio: f.bio, location: f.location,
+               niche: f.niche, secondary_topics: f.secondary_topics,
+               expertise_level: f.expertise_level };
     }
+    if (s === 1) {
+      return { audience: f.audience, audience_segments: f.audience_segments, goals: f.goals };
+    }
+    return { writing_style: f.writing_style, tone: f.tone, style_notes: f.style_notes,
+             topics: f.topics, avoid_topics: f.avoid_topics, formats: f.formats,
+             frequency: f.frequency, platforms: f.platforms };
   }
 
-  async function next(patch: Record<string, unknown> = {}) {
+  async function next() {
     setBusy(true);
     try {
-      await save({ ...collect(step), ...patch });
+      await save(collect(step));
       setStep(step + 1);
     } catch { /* error shown */ } finally {
       setBusy(false);
@@ -103,7 +101,7 @@ export default function OnboardingPage() {
     setBusy(true);
     setBuilding(true);
     try {
-      await save(collect(6));
+      await save(collect(2));
       const r = await api.onboardComplete();
       setDone(r.summary);
     } catch { /* shown */ } finally {
@@ -144,41 +142,35 @@ export default function OnboardingPage() {
         <div className="card">
           {step === 0 && (
             <>
-              <label className="field">Your name
-                <input value={f.name as string} onChange={(e) => set("name", e.target.value)} placeholder="Sankiyy" autoComplete="name" /></label>
-              <label className="field" style={{ marginTop: 10 }}>What do you do?
-                <input value={f.role as string} onChange={(e) => set("role", e.target.value)} placeholder="AI / Data Engineering" /></label>
+              <div className="grid2">
+                <label className="field">Your name
+                  <input value={f.name as string} onChange={(e) => set("name", e.target.value)} placeholder="Sankiyy" autoComplete="name" /></label>
+                <label className="field">What do you do?
+                  <input value={f.role as string} onChange={(e) => set("role", e.target.value)} placeholder="AI / Data Engineering" /></label>
+              </div>
               <label className="field" style={{ marginTop: 10 }}>Short introduction
                 <input value={f.bio as string} onChange={(e) => set("bio", e.target.value)} placeholder="Building AI and data engineering projects…" /></label>
-              <label className="field" style={{ marginTop: 10 }}>Location / timezone (optional)
-                <input value={f.location as string} onChange={(e) => set("location", e.target.value)} placeholder="IST" /></label>
-            </>
-          )}
-
-          {step === 1 && (
-            <>
-              <label className="field">Primary niche
-                <input value={f.niche as string} onChange={(e) => set("niche", e.target.value)} placeholder="AI + Data Engineering" /></label>
+              <div className="grid2" style={{ marginTop: 10 }}>
+                <label className="field">Primary niche
+                  <input value={f.niche as string} onChange={(e) => set("niche", e.target.value)} placeholder="AI + Data Engineering" /></label>
+                <label className="field">Location / timezone (optional)
+                  <input value={f.location as string} onChange={(e) => set("location", e.target.value)} placeholder="IST" /></label>
+              </div>
               <label className="field" style={{ marginTop: 10 }}>Secondary topics (comma separated)
-                <input value={(f.secondary_topics as string[]).join(", ")} onChange={(e) => set("secondary_topics", csv(e.target.value))} placeholder="LLMs, AI Agents, PySpark, Open Source" /></label>
+                <input value={(f.secondary_topics as string[]).join(", ")} onChange={(e) => set("secondary_topics", csv(e.target.value))} placeholder="LLMs, AI Agents, PySpark" /></label>
               <p className="lbl">Expertise level</p>
               <Chips options={["Beginner", "Intermediate", "Advanced", "Expert"]} value={[f.expertise_level as string]} onChange={([v]) => set("expertise_level", v ?? "")} multi={false} />
             </>
           )}
 
-          {step === 2 && (
+          {step === 1 && (
             <>
               <label className="field">Who are you creating for? (one line)
                 <input value={f.audience as string} onChange={(e) => set("audience", e.target.value)} placeholder="Developers, Data Engineers, Students" /></label>
               <p className="lbl">Audience segments</p>
               <Chips options={["Developers", "Data Engineers", "Students", "Founders", "Designers", "Managers"]}
                 value={f.audience_segments as string[]} onChange={(v) => set("audience_segments", v)} />
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <p className="lbl">Pick all that apply</p>
+              <p className="lbl">Goals — pick all that apply</p>
               <Chips options={GOALS} value={f.goals as string[]} onChange={(v) => set("goals", v)} />
               <label className="field" style={{ marginTop: 10 }}>Custom goal (optional)
                 <input placeholder="e.g. Document my learning" onBlur={(e) => {
@@ -188,35 +180,29 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
             <>
-              <p className="lbl">How do you want to sound? (combinations welcome)</p>
+              <p className="lbl">How do you want to sound?</p>
               <Chips options={STYLES} value={(f.writing_style as string).split(" + ").filter(Boolean)}
                 onChange={(v) => set("writing_style", v.join(" + "))} />
-              <label className="field" style={{ marginTop: 10 }}>Tone
-                <input value={f.tone as string} onChange={(e) => set("tone", e.target.value)} placeholder="Technical + simple + professional" /></label>
-              <label className="field" style={{ marginTop: 10 }}>Describe your writing style
+              <div className="grid2" style={{ marginTop: 10 }}>
+                <label className="field">Tone
+                  <input value={f.tone as string} onChange={(e) => set("tone", e.target.value)} placeholder="Technical + simple" /></label>
+                <label className="field">Posting frequency
+                  <input value={f.frequency as string} onChange={(e) => set("frequency", e.target.value)} placeholder="3–5 / week" /></label>
+              </div>
+              <label className="field" style={{ marginTop: 10 }}>Describe your style
                 <input value={f.style_notes as string} onChange={(e) => set("style_notes", e.target.value)}
-                  placeholder="I like technical content but explain complex concepts simply. No AI hype." /></label>
-            </>
-          )}
-
-          {step === 5 && (
-            <>
-              <label className="field">Topics you want to talk about (comma separated)
-                <input value={(f.topics as string[]).join(", ")} onChange={(e) => set("topics", csv(e.target.value))} /></label>
-              <label className="field" style={{ marginTop: 10 }}>Topics to avoid
-                <input value={(f.avoid_topics as string[]).join(", ")} onChange={(e) => set("avoid_topics", csv(e.target.value))} placeholder="Generic AI hype, clickbait" /></label>
+                  placeholder="Technical but simple. No AI hype." /></label>
+              <div className="grid2" style={{ marginTop: 10 }}>
+                <label className="field">Topics to cover
+                  <input value={(f.topics as string[]).join(", ")} onChange={(e) => set("topics", csv(e.target.value))} placeholder="AI agents, LLMs" /></label>
+                <label className="field">Topics to avoid
+                  <input value={(f.avoid_topics as string[]).join(", ")} onChange={(e) => set("avoid_topics", csv(e.target.value))} placeholder="Hype, clickbait" /></label>
+              </div>
               <p className="lbl">Formats</p>
               <Chips options={FORMATS} value={f.formats as string[]} onChange={(v) => set("formats", v)} />
-              <p className="lbl">Posting frequency</p>
-              <Chips options={FREQS} value={[f.frequency as string]} onChange={([v]) => set("frequency", v ?? "")} multi={false} />
-            </>
-          )}
-
-          {step === 6 && (
-            <>
-              <p className="lbl">Where should SignalCraft write for?</p>
+              <p className="lbl">Platforms</p>
               <Chips options={PLATFORMS} value={f.platforms as string[]} onChange={(v) => set("platforms", v)} />
             </>
           )}
@@ -225,8 +211,8 @@ export default function OnboardingPage() {
           <div className="row" style={{ marginTop: 14 }}>
             {step > 0 && <button className="btn ghost" onClick={() => setStep(step - 1)} disabled={busy}>Back</button>}
             <span style={{ flex: 1 }} />
-            {step < 6 ? (
-              <button className="btn" onClick={() => next()} disabled={busy || (step === 0 && !(f.name as string).trim()) || (step === 1 && !(f.niche as string).trim())}>
+            {step < 2 ? (
+              <button className="btn" onClick={() => next()} disabled={busy || (step === 0 && (!(f.name as string).trim() || !(f.niche as string).trim()))}>
                 {busy ? "Saving…" : "Continue →"}
               </button>
             ) : (
@@ -235,7 +221,7 @@ export default function OnboardingPage() {
               </button>
             )}
           </div>
-          {building && <p className="muted">Researching your niche and ranking your first opportunities — up to a minute on live AI.</p>}
+          {building && <p className="muted">Researching your niche and ranking your first opportunities.</p>}
         </div>
       </div>
     </div>

@@ -277,6 +277,13 @@ details.trace summary { cursor: pointer; color: var(--muted); }
 .landh { font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.02em; }
 .signalstrip { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
 
+/* Live trend ticker */
+.ticker { overflow: hidden; margin: 26px auto 0; max-width: 760px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.tickerin { display: inline-flex; gap: 10px; white-space: nowrap; animation: tick 30s linear infinite; }
+@keyframes tick { to { transform: translateX(-50%); } }
+
 /* Floating hero product */
 .heroviz { perspective: 1200px; margin: 44px auto 0; max-width: 720px; }
 .floatcard {

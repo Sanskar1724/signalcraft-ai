@@ -141,9 +141,11 @@ class opportunity:
 class content:
     @staticmethod
     def generate(opportunity_id: int, platform: str = "LinkedIn", user_id: int = 1,
-                 tone: str | None = None, length: str = "medium") -> dict:
+                 tone: str | None = None, length: str = "medium",
+                 style_match: bool = True, grounded: bool = True) -> dict:
         res = _generate(opportunity_id, platform=platform, user_id=user_id,
-                        tone=tone, length=length)
+                        tone=tone, length=length, style_match=style_match,
+                        grounded=grounded)
         return {"content": res["content"], "critique": res["critique"],
                 "brief": res["brief"].model_dump()}
 

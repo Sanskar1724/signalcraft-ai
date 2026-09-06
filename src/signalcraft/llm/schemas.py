@@ -39,6 +39,7 @@ class ContentBrief(BaseModel):
     angle: str = ""
     hook_strategy: str = "One sharp, specific opening line"
     supporting_evidence: list[str] = Field(default_factory=list)
+    style_reference: str = ""
     cta: str = ""
     tone: str = ""
     things_to_avoid: list[str] = Field(default_factory=list)

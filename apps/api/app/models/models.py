@@ -35,6 +35,7 @@ class TrendSignal(BaseModel):
     audience_fit: float = 0
     competition: float = 0
     trend_score: float = 0
+    evidence_titles: list[str] = []
 
 
 class Opportunity(BaseModel):

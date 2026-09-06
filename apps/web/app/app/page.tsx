@@ -4,15 +4,16 @@ import Link from "next/link";
 import { api } from "../../lib/api";
 import { HBar, Sparkline } from "../../components/charts";
 import { timeAgo } from "../../components/charts";
-import { Card, Empty, Loading, ScoreBar, Stat, useApi } from "../../components/ui";
+import { Card, Empty, Loading, Pill, Quality, ScoreBar, Stat, useApi } from "../../components/ui";
 
 export default function OverviewPage() {
   const a = useApi(() => api.analytics());
   const o = useApi(() => api.opportunities());
   const ins = useApi(() => api.insights());
   const me = useApi(() => api.me());
-  const busy = a.busy || o.busy || ins.busy;
-  const error = a.error || o.error || ins.error;
+  const lib = useApi(() => api.library());
+  const busy = a.busy || o.busy || ins.busy || lib.busy;
+  const error = a.error || o.error || ins.error || lib.error;
 
   async function refresh() {
     await api.runResearch(20);
@@ -22,7 +23,7 @@ export default function OverviewPage() {
   }
 
   if (busy) return (<><h1>Overview</h1><Loading /></>);
-  if (error || !a.data || !o.data)
+  if (error || !a.data || !o.data || !lib.data)
     return (<><h1>Overview</h1><div className="error">API unavailable: {error} — is the backend running?</div></>);
 
   const top = o.data.slice(0, 3);
@@ -87,6 +88,21 @@ export default function OverviewPage() {
         <Card key={i}><p style={{ margin: 0 }}>{l}</p></Card>
       ))}
       <p><Link href="/app/insights" style={{ color: "var(--accent2)" }}>All insights →</Link></p>
+
+      <h2>Recent content</h2>
+      {lib.data.slice(0, 5).map((c) => (
+        <Card key={c.id}>
+          <div className="row" style={{ alignItems: "center" }}>
+            <Pill kind={c.platform}>{c.platform}</Pill>
+            <b>{c.title.slice(0, 80)}</b>
+            <span style={{ flex: 1 }} />
+            <Quality score={c.quality_score} />
+          </div>
+          <p className="muted">{c.status} · {timeAgo(c.created_at)}</p>
+        </Card>
+      ))}
+      {!lib.data.length && <Empty text="No content yet — generate your first draft." />}
+      <p><Link href="/app/library" style={{ color: "var(--accent2)" }}>Full library →</Link></p>
       <p className="stamp">Updated {timeAgo(new Date().toISOString())} · demo data</p>
     </>
   );

@@ -35,6 +35,8 @@ class GenerateIn(BaseModel):
     platform: str = "LinkedIn"
     tone: str | None = None
     length: str = "medium"
+    style_match: bool = True
+    grounded: bool = True
 
 
 class CritiqueIn(BaseModel):

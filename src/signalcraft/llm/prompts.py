@@ -26,10 +26,19 @@ TEMPLATES: dict[str, dict] = {
                      "\"reason\": \"...\"}."),
     },
     "content_strategy": {
-        "version": 2,
+        "version": 3,
         "template": ("Content brief (JSON): {brief}\n\nWrite the core paragraph "
-                     "(120-180 words): one claim, one example, one takeaway. "
-                     "Tone: {tone}. No hype, no invented statistics."),
+                     "(120-180 words) a working creator would actually post:\n"
+                     "1. Open with a sharp, specific hook — no throat-clearing.\n"
+                     "2. One claim, one concrete example, one takeaway.\n"
+                     "3. Use ONLY the facts in supporting_evidence; never invent "
+                     "statistics, quotes, URLs or events. If evidence is thin, say "
+                     "what you observed, not what you assume.\n"
+                     "4. Match the voice in style_reference when present; ignore "
+                     "it when empty.\n"
+                     "5. Banned phrases: game-changer, revolutionize, unlock the "
+                     "power, in today's fast-paced world, delving into.\n"
+                     "Tone: {tone}."),
     },
     "linkedin_generation": {
         "version": 1,

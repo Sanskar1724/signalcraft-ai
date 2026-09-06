@@ -33,6 +33,8 @@ function CreateInner() {
   const [results, setResults] = useState<Record<string, GenerateResult & { id: number }>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [styleMatch, setStyleMatch] = useState(true);
+  const [grounded, setGrounded] = useState(true);
 
   useEffect(() => {
     const q = Number(params.get("opp") ?? 0);
@@ -47,7 +49,7 @@ function CreateInner() {
     try {
       const out: Record<string, GenerateResult & { id: number }> = { ...results };
       for (const p of plats) {
-        const r = await api.generate(oppId, p, { tone: tone || undefined, length });
+        const r = await api.generate(oppId, p, { tone: tone || undefined, length, style_match: styleMatch, grounded });
         out[p] = { ...r, id: r.content.id };
         setResults({ ...out });
       }
@@ -119,6 +121,16 @@ function CreateInner() {
             </div>
             <div style={{ margin: "10px 0" }}>
               <Tabs tabs={PLATS} active={platform} onChange={setPlatform} />
+            </div>
+            <div className="row">
+              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <input type="checkbox" style={{ width: 18 }} checked={styleMatch}
+                  onChange={(e) => setStyleMatch(e.target.checked)} /> Match my best-performing style
+              </label>
+              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <input type="checkbox" style={{ width: 18 }} checked={grounded}
+                  onChange={(e) => setGrounded(e.target.checked)} /> Ground in research
+              </label>
             </div>
             <div className="row">
               <button className="btn" onClick={() => generate([platform])} disabled={busy || !oppId}>

@@ -42,6 +42,14 @@ export default function TrendingPage() {
             <span>Audience {t.audience_fit}</span>
             <span>Competition {t.competition}</span>
           </div>
+          {(t.evidence_titles ?? []).length > 0 && (
+            <details className="trace">
+              <summary>Evidence ({t.evidence_titles!.length} sources)</summary>
+              {(t.evidence_titles ?? []).map((e, i) => (
+                <p key={i} className="muted">· {e}</p>
+              ))}
+            </details>
+          )}
         </Card>
       ))}
     </>

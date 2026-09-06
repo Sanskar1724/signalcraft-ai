@@ -24,8 +24,11 @@ MAX_BODY = 6000
 LENGTH_TOKENS = {"short": 250, "medium": 450, "long": 750}
 
 
-def _evidence_titles(opp: dict) -> list[str]:
-    """Resolve stored research refs to titles (§33 provenance)."""
+def _evidence(opp: dict) -> list[str]:
+    """Resolve stored research refs to grounded snippets (§33 provenance).
+
+    Title + summary fragment only — the model must never invent beyond these.
+    """
     import json as _json
     refs = opp.get("research_refs") or "[]"
     try:
@@ -37,15 +40,48 @@ def _evidence_titles(opp: dict) -> list[str]:
     conn = get_conn()
     try:
         rows = conn.execute(
-            f"SELECT title FROM research_documents WHERE id IN ({','.join('?' * len(ids))})",
+            f"SELECT title, summary FROM research_documents WHERE id IN ({','.join('?' * len(ids))})",
             ids).fetchall()
-        return [r["title"] for r in rows]
+        out = []
+        for r in rows:
+            snippet = (r["summary"] or "")[:220].strip()
+            out.append(r["title"] + (f" — {snippet}" if snippet else ""))
+        return out
     finally:
         conn.close()
 
 
-def build_brief(profile, opp: dict, evidence_titles: list[str],
-                prefs: dict | None = None) -> ContentBrief:
+def _style_reference(user_id: int, platform: str) -> str:
+    """The creator's own best-performing excerpt as voice reference.
+
+    Real data only (top engagement post on this platform, else overall).
+    Returns '' when nothing performed yet — never fabricated.
+    """
+    conn = get_conn()
+    try:
+        for plat in (platform, None):
+            q = ("SELECT c.hook, c.body, COALESCE(p.engagement_rate,0) AS er"
+                 " FROM content c LEFT JOIN (SELECT content_id, MAX(id) AS mid"
+                 " FROM content_performance GROUP BY content_id) latest"
+                 " ON latest.content_id=c.id"
+                 " LEFT JOIN content_performance p ON p.id=latest.mid"
+                 " WHERE c.user_id=? AND COALESCE(p.engagement_rate,0) > 0")
+            args: list = [user_id]
+            if plat:
+                q += " AND c.platform=?"
+                args.append(plat)
+            q += " ORDER BY er DESC LIMIT 1"
+            row = conn.execute(q, args).fetchone()
+            if row:
+                excerpt = (row["body"] or "")[:400].strip()
+                return f"Proven voice reference ({platform}, {row['er']}% engagement): {excerpt}"
+        return ""
+    finally:
+        conn.close()
+
+
+def build_brief(profile, opp: dict, evidence: list[str],
+                prefs: dict | None = None, style_ref: str = "") -> ContentBrief:
     """Structured content brief (§13) built deterministically, LLM drafts from it."""
     prefs = prefs or {}
     cta_by_pref = {
@@ -60,7 +96,8 @@ def build_brief(profile, opp: dict, evidence_titles: list[str],
         platform=opp.get("platform", "LinkedIn"),
         core_message=opp.get("angle", ""),
         angle=opp.get("angle", ""),
-        supporting_evidence=evidence_titles[:3],
+        supporting_evidence=evidence[:3],
+        style_reference=style_ref[:500],
         cta=cta_by_pref.get(prefs.get("cta_pref", ""), "What is working for you?"),
         tone=prefs.get("tone") or profile.tone,
         things_to_avoid=profile.avoid_topics,
@@ -80,7 +117,8 @@ def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str,
 def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                      user_id: int = 1, gateway: LLMGateway | None = None,
                      trace: Trace | None = None, tone: str | None = None,
-                     length: str = "medium") -> dict:
+                     length: str = "medium", style_match: bool = True,
+                     grounded: bool = True) -> dict:
     if length not in LENGTH_TOKENS:
         raise ValueError(f"invalid length: {length}")
     gateway = gateway or LLMGateway()
@@ -100,13 +138,17 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     trace.add("creator_context", {"niche": profile.niche, "tone": profile.tone,
                                   "memory": [m["key"] for m in recall(user_id, limit=5)]})
 
-    evidence = _evidence_titles(opp)
+    evidence = _evidence(opp) if grounded else []
     from ..preferences import get_preferences
     prefs = get_preferences(user_id)
     if tone:
         prefs = {**prefs, "tone": tone}
-    brief = build_brief(profile, {**opp, "platform": platform}, evidence, prefs)
+    style_ref = _style_reference(user_id, platform) if style_match else ""
+    brief = build_brief(profile, {**opp, "platform": platform}, evidence, prefs,
+                        style_ref)
     trace.add("brief", brief.model_dump())
+    trace.add("grounding", {"grounded": grounded, "style_match": bool(style_ref),
+                            "evidence_n": len(evidence)})
 
     core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length])
     trace.add("strategy", core[:200])

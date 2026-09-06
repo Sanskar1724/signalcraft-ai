@@ -41,6 +41,17 @@ export default function ProfileSettingsPage() {
   if (prof.error || !prof.data) return (<><h1>Profile</h1><div className="error">API unavailable: {prof.error}</div></>);
 
   const cur = { ...prof.data, ...(form ?? {}) };
+  const checks: [string, boolean][] = [
+    ["Name", !!cur.name && cur.name !== "Creator"],
+    ["Role", !!cur.role],
+    ["Niche", !!cur.niche],
+    ["Audience", !!cur.audience],
+    ["Goals", !!cur.goals],
+    ["Tone or style", !!(cur.tone || cur.writing_style)],
+    ["Topics", (cur.topics ?? []).length > 0],
+    ["Platforms", (cur.platforms ?? []).length > 0],
+  ];
+  const pct = Math.round((checks.filter(([, v]) => v).length / checks.length) * 100);
 
   async function save() {
     setSaved("");
@@ -55,6 +66,21 @@ export default function ProfileSettingsPage() {
       <h1>Settings</h1>
       <SubNav />
       <h2>Profile</h2>
+      <Card glow>
+        <div className="row" style={{ alignItems: "center" }}>
+          <span className="avatar" style={{ width: 44, height: 44, fontSize: 19 }}>
+            {(cur.name || "?").trim().charAt(0).toUpperCase()}
+          </span>
+          <div style={{ flex: 1 }}>
+            <b>{cur.name || "Unnamed creator"}</b>
+            <p className="muted" style={{ margin: 0 }}>{cur.role || "No role yet"} · Profile {pct}% complete</p>
+          </div>
+        </div>
+        <div className="bar"><i style={{ width: `${pct}%` }} /></div>
+        {checks.filter(([, v]) => !v).length > 0 && (
+          <p className="muted">Missing: {checks.filter(([, v]) => !v).map(([k]) => k).join(", ")}</p>
+        )}
+      </Card>
       <Card glow>
         <label className="field">Preferred topics (comma separated)
           <input
