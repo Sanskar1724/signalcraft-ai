@@ -62,14 +62,14 @@ python scripts/seed.py --fresh  # demo creator, 21 drafts, performance history
 Run the backend and frontend in two terminals:
 
 ```bash
-# Terminal 1 — REST API on :8000
+# Terminal 1 — REST API on :8001
 uvicorn apps.api.app.main:app --app-dir . --reload
 
-# Terminal 2 — dashboard on :3000
+# Terminal 2 — dashboard on :3001
 cd apps/web && npm install && npm run dev
 ```
 
-Open http://localhost:3000. The API docs live at http://localhost:8000/docs.
+Open http://localhost:3001. The API docs live at http://localhost:8001/docs.
 
 ## Configuration
 
@@ -82,7 +82,7 @@ All settings are environment-first; see `.env.example` for the full list.
 | `CHEAP_MODEL` / `STRONG_MODEL` | Task-based model routing | `mock` |
 | `QUALITY_THRESHOLD` / `MAX_RETRIES` | Critic revise loop bounds | `7.5` / `1` |
 | `TREND_WEIGHTS_JSON` / `OPP_WEIGHTS_JSON` | Scoring weight overrides | spec defaults |
-| `NEXT_PUBLIC_API_URL` | Backend URL for the web app | `http://localhost:8000` |
+| `NEXT_PUBLIC_API_URL` | Backend URL for the web app | `http://localhost:8001` |
 
 ## API reference
 

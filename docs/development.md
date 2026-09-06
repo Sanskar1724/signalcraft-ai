@@ -4,8 +4,8 @@
 make setup && cp -n .env.example .env
 make test            # pytest: domain (tests/) + API (apps/api/tests)
 make seed            # demo data
-make api             # uvicorn :8000
-make web             # next dev :3000 (cd apps/web, npm install first)
+make api             # uvicorn :8001
+make web             # next dev :3001 (cd apps/web, npm install first)
 make docker-up       # full stack (needs Docker daemon)
 ```
 
