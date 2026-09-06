@@ -16,6 +16,8 @@ DEFAULT_PROFILE = {
     "topics": ["AI agents", "LLMs", "Data engineering", "Open source", "PySpark"],
     "avoid_topics": ["Generic AI hype"],
     "style_notes": "Concrete examples, no fluff.",
+    "content_preferences": "Insight posts, tutorials, build-in-public notes",
+    "posting_preferences": "3x per week, mornings",
 }
 
 
@@ -31,6 +33,8 @@ class Profile:
     topics: list[str] = field(default_factory=list)
     avoid_topics: list[str] = field(default_factory=list)
     style_notes: str = ""
+    content_preferences: str = ""
+    posting_preferences: str = ""
 
     def keywords(self) -> set[str]:
         blob = " ".join([self.niche, self.expertise, " ".join(self.topics)]).lower()
@@ -55,6 +59,8 @@ def get_profile(user_id: int = 1) -> Profile:
             topics=json.loads(row["topics"] or "[]"),
             avoid_topics=json.loads(row["avoid_topics"] or "[]"),
             style_notes=row["style_notes"] or "",
+            content_preferences=row["content_preferences"] or "" if "content_preferences" in row.keys() else "",
+            posting_preferences=row["posting_preferences"] or "" if "posting_preferences" in row.keys() else "",
         )
     finally:
         conn.close()
@@ -62,7 +68,8 @@ def get_profile(user_id: int = 1) -> Profile:
 
 def update_profile(user_id: int = 1, **fields) -> Profile:
     allowed = {"niche", "expertise", "audience", "goals", "platforms",
-               "tone", "topics", "avoid_topics", "style_notes"}
+               "tone", "topics", "avoid_topics", "style_notes",
+               "content_preferences", "posting_preferences"}
     cols, vals = [], []
     for k, v in fields.items():
         if k not in allowed:

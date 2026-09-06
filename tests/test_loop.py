@@ -11,10 +11,12 @@ def test_full_loop_offline(tmp_db):
     assert len(collect_and_store(limit=10, use_live=False)) >= 3
     trends = detect_trends()
     assert trends and trends[0]["score"] > 0
-    # transparent formula spot-check
+    # transparent formula spot-check (§9, 7 dimensions)
     t = trends[0]
-    expect = 100 * (0.30 * t["freshness"] + 0.25 * t["growth"]
-                    + 0.25 * t["relevance"] + 0.20 * t["novelty"])
+    expect = 100 * (0.20 * t["freshness"] + 0.15 * t["growth"]
+                    + 0.20 * t["relevance"] + 0.15 * t["audience_fit"]
+                    + 0.10 * t["novelty"] + 0.05 * (1 - t["competition"])
+                    + 0.15 * t["creator_fit"])
     assert abs(expect - t["score"]) < 0.15
     opps = build_opportunities()
     assert opps and {"topic", "why_now", "why_you", "score", "confidence"} <= set(opps[0])

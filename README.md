@@ -30,7 +30,7 @@ Modular monolith: `app.py` + `src/signalcraft/` + SQLite (`data/signalcraft.db`)
 See `docs/IMPLEMENTATION_PLAN.md`, `docs/architecture.md`, `docs/api.md`, `docs/roadmap.md`.
 
 ## Trend formula
-`score = 100 × (0.30·freshness + 0.25·growth + 0.25·relevance + 0.20·novelty)`,
+`score = 100 × (0.20·freshness + 0.15·growth + 0.20·relevance + 0.15·audience fit + 0.10·novelty + 0.05·(1−competition) + 0.15·creator fit)`,
 plus a bounded memory boost in [-8, +8]. No black boxes.
 
 ## Grounding

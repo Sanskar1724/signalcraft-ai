@@ -1,12 +1,17 @@
 """Trend intelligence: 'what is trending that matters to THIS creator?'
 
-Transparent formula (documented, testable):
-  score = 100 * (0.30*freshness + 0.25*growth + 0.25*relevance + 0.20*novelty)
+Transparent formula (§9, documented, testable):
+  score = 100 * (0.20*freshness + 0.15*growth + 0.20*relevance
+                 + 0.15*audience_fit + 0.10*novelty
+                 + 0.05*(1-competition) + 0.15*creator_fit)
 
 - freshness: recency of supporting research (1.0 = <24h, decays linearly to 0 at 30d)
 - growth: mention velocity proxy = min(1, n_mentions / 5)
-- relevance: keyword overlap between topic and creator profile
-- novelty: 1 - similarity to recent content topics (MVP: 1 - overlap with last 10 content titles)
+- relevance: keyword overlap between topic and niche
+- audience_fit: keyword overlap between topic and audience (§9)
+- novelty: 1 - similarity to recent content topics (last 10 titles)
+- competition: min(1, n_mentions / 8); saturated topics are penalized via (1-competition)
+- creator_fit: overlap with expertise + explicit preferred topics (§9)
 """
 from __future__ import annotations
 
@@ -37,7 +42,9 @@ def _freshness(published_at: str) -> float:
 
 def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
     profile = get_profile(user_id)
-    pkeys = profile.keywords()
+    niche_keys = {w for w in _tokens(profile.niche)}
+    exp_keys = {w for w in _tokens(profile.expertise + " " + " ".join(profile.topics))}
+    aud_keys = {w for w in _tokens(profile.audience)}
     avoid = {a.lower() for a in profile.avoid_topics}
 
     conn = get_conn()
@@ -74,17 +81,24 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
         fresh = sum(_freshness(r["published_at"]) for r in sup) / max(1, len(sup))
         growth = min(1.0, mentions / 5.0)
         tset = set(topic.split())
-        relevance = len(tset & pkeys) / max(1, len(tset)) if pkeys else 0.3
+        relevance = len(tset & niche_keys) / max(1, len(tset)) if niche_keys else 0.3
+        audience_fit = len(tset & aud_keys) / max(1, len(tset)) if aud_keys else 0.3
+        creator_fit = len(tset & exp_keys) / max(1, len(tset)) if exp_keys else 0.3
         # boost if topic matches an explicit profile topic
         if any(pt.lower() in topic or topic in pt.lower() for pt in profile.topics):
-            relevance = min(1.0, relevance + 0.3)
+            creator_fit = min(1.0, creator_fit + 0.3)
         novelty = 0.0 if topic in past_titles else 1.0
         if any(w in past_titles for w in tset):
             novelty = 0.5
-        score = 100 * (0.30 * fresh + 0.25 * growth + 0.25 * relevance + 0.20 * novelty)
+        competition = min(1.0, mentions / 8.0)
+        score = 100 * (0.20 * fresh + 0.15 * growth + 0.20 * relevance
+                       + 0.15 * audience_fit + 0.10 * novelty
+                       + 0.05 * (1 - competition) + 0.15 * creator_fit)
         scored.append({
             "topic": topic, "freshness": round(fresh, 3), "growth": round(growth, 3),
-            "relevance": round(relevance, 3), "novelty": round(novelty, 3),
+            "relevance": round(relevance, 3), "audience_fit": round(audience_fit, 3),
+            "novelty": round(novelty, 3), "competition": round(competition, 3),
+            "creator_fit": round(creator_fit, 3),
             "score": round(score, 1),
             "evidence": [s["id"] for s in sup],
             "evidence_titles": [s["title"] for s in sup],
@@ -97,10 +111,12 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
         conn.execute("DELETE FROM trends WHERE user_id=?", (user_id,))
         for t in top:
             conn.execute(
-                "INSERT INTO trends (user_id, topic, freshness, growth, relevance, novelty, score, evidence)"
-                " VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO trends (user_id, topic, freshness, growth, relevance,"
+                " audience_fit, novelty, competition, creator_fit, score, evidence)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (user_id, t["topic"], t["freshness"], t["growth"], t["relevance"],
-                 t["novelty"], t["score"], json.dumps(t["evidence"])),
+                 t["audience_fit"], t["novelty"], t["competition"], t["creator_fit"],
+                 t["score"], json.dumps(t["evidence"])),
             )
         conn.commit()
     finally:

@@ -76,6 +76,11 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
         result = critique(body, platform=platform, topic=opp["topic"])
         trace.add("revise", {"overall": result["overall"]})
 
+    validation = validate(body, platform=platform)
+    trace.add("validate", validation)
+    if not validation["ok"]:
+        raise ValueError(f"content validation failed: {validation['errors']}")
+
     conn = get_conn()
     try:
         cur = conn.execute(
@@ -97,13 +102,35 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
         conn.close()
 
 
-def list_content(user_id: int = 1, limit: int = 50) -> list[dict]:
+def validate(body: str, platform: str = "LinkedIn") -> dict:
+    """Final validation gate (§11): non-empty, within caps, platform sane."""
+    errors = []
+    text = (body or "").strip()
+    if len(text) < 40:
+        errors.append("body too short (<40 chars)")
+    if len(text) > MAX_BODY:
+        errors.append(f"body exceeds {MAX_BODY} chars")
+    if platform not in {"LinkedIn", "X", "Blog"}:
+        errors.append(f"unknown platform: {platform}")
+    return {"ok": not errors, "errors": errors}
+
+
+def list_content(user_id: int = 1, limit: int = 50, offset: int = 0,
+                 platform: str | None = None) -> list[dict]:
     conn = get_conn()
     try:
-        rows = conn.execute(
-            "SELECT c.*, o.topic AS opportunity_topic FROM content_items c"
-            " LEFT JOIN opportunities o ON o.id=c.opportunity_id"
-            " WHERE c.user_id=? ORDER BY c.id DESC LIMIT ?", (user_id, limit)).fetchall()
+        if platform:
+            rows = conn.execute(
+                "SELECT c.*, o.topic AS opportunity_topic FROM content_items c"
+                " LEFT JOIN opportunities o ON o.id=c.opportunity_id"
+                " WHERE c.user_id=? AND c.platform=? ORDER BY c.id DESC LIMIT ? OFFSET ?",
+                (user_id, platform, limit, offset)).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT c.*, o.topic AS opportunity_topic FROM content_items c"
+                " LEFT JOIN opportunities o ON o.id=c.opportunity_id"
+                " WHERE c.user_id=? ORDER BY c.id DESC LIMIT ? OFFSET ?",
+                (user_id, limit, offset)).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()

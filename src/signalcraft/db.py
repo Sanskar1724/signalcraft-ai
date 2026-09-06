@@ -29,7 +29,27 @@ CREATE TABLE IF NOT EXISTS profiles (
     topics TEXT NOT NULL DEFAULT '[]',
     avoid_topics TEXT NOT NULL DEFAULT '[]',
     style_notes TEXT NOT NULL DEFAULT '',
+    content_preferences TEXT NOT NULL DEFAULT '',
+    posting_preferences TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS audiences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'tracked',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS research_items (
@@ -52,7 +72,10 @@ CREATE TABLE IF NOT EXISTS trends (
     freshness REAL NOT NULL DEFAULT 0,
     growth REAL NOT NULL DEFAULT 0,
     relevance REAL NOT NULL DEFAULT 0,
+    audience_fit REAL NOT NULL DEFAULT 0,
     novelty REAL NOT NULL DEFAULT 0,
+    competition REAL NOT NULL DEFAULT 0,
+    creator_fit REAL NOT NULL DEFAULT 0,
     score REAL NOT NULL DEFAULT 0,
     evidence TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -108,6 +131,7 @@ CREATE TABLE IF NOT EXISTS performance (
     shares INTEGER NOT NULL DEFAULT 0,
     clicks INTEGER NOT NULL DEFAULT 0,
     saves INTEGER NOT NULL DEFAULT 0,
+    reach INTEGER NOT NULL DEFAULT 0,
     engagement_rate REAL NOT NULL DEFAULT 0,
     recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -146,7 +170,33 @@ CREATE TABLE IF NOT EXISTS calendar_entries (
     status TEXT NOT NULL DEFAULT 'draft',
     notes TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
+    opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    rank INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'suggested',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Additive migrations for DBs created by earlier MVP versions."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(profiles)").fetchall()}
+    if "content_preferences" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN content_preferences TEXT NOT NULL DEFAULT ''")
+    if "posting_preferences" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN posting_preferences TEXT NOT NULL DEFAULT ''")
+    tcols = {r["name"] for r in conn.execute("PRAGMA table_info(trends)").fetchall()}
+    for c in ("audience_fit", "competition", "creator_fit"):
+        if c not in tcols:
+            conn.execute(f"ALTER TABLE trends ADD COLUMN {c} REAL NOT NULL DEFAULT 0")
+    pcols = {r["name"] for r in conn.execute("PRAGMA table_info(performance)").fetchall()}
+    if "reach" not in pcols:
+        conn.execute("ALTER TABLE performance ADD COLUMN reach INTEGER NOT NULL DEFAULT 0")
 
 
 def get_conn(db_path: Path | None = None) -> sqlite3.Connection:
@@ -164,6 +214,7 @@ def init_db(db_path: Path | None = None) -> Path:
     conn = get_conn(path)
     try:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         # seed default user + profile
         row = conn.execute("SELECT id FROM users WHERE id=1").fetchone()
         if row is None:

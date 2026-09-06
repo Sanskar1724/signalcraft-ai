@@ -7,6 +7,8 @@ import sqlite3
 from ..db import get_conn
 from ..observability import log
 from .base import BaseSource, ResearchItem
+from .extra_sources import (GitHubSource, NewsSource, RedditSource,
+                            SearchTrendsSource, WebSearchSource, YouTubeSource)
 from .rss import RSSSource
 from .samples import SampleSource
 
@@ -15,7 +17,10 @@ def collect_and_store(query: str = "", limit: int = 20, user_id: int = 1,
                       use_live: bool = True) -> list[dict]:
     sources: list[BaseSource] = [SampleSource()]
     if use_live:
-        sources.insert(0, RSSSource())
+        # Pluggable pipeline (§8): new sources append here, no core rewrite.
+        sources = [RSSSource(), GitHubSource(), RedditSource(), YouTubeSource(),
+                   NewsSource(), WebSearchSource(), SearchTrendsSource(),
+                   SampleSource()]
     seen: dict[str, ResearchItem] = {}
     for src in sources:
         try:
@@ -50,25 +55,25 @@ def collect_and_store(query: str = "", limit: int = 20, user_id: int = 1,
     return stored
 
 
-def list_recent(user_id: int = 1, limit: int = 30) -> list[dict]:
+def list_recent(user_id: int = 1, limit: int = 30, offset: int = 0) -> list[dict]:
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT * FROM research_items WHERE user_id=? ORDER BY id DESC LIMIT ?",
-            (user_id, limit),
+            "SELECT * FROM research_items WHERE user_id=? ORDER BY id DESC LIMIT ? OFFSET ?",
+            (user_id, limit, offset),
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
 
 
-def search(user_id: int = 1, query: str = "", limit: int = 20) -> list[dict]:
+def search(user_id: int = 1, query: str = "", limit: int = 20, offset: int = 0) -> list[dict]:
     conn = get_conn()
     try:
         rows = conn.execute(
             "SELECT * FROM research_items WHERE user_id=? AND (title LIKE ? OR summary LIKE ?)"
-            " ORDER BY id DESC LIMIT ?",
-            (user_id, f"%{query}%", f"%{query}%", limit),
+            " ORDER BY id DESC LIMIT ? OFFSET ?",
+            (user_id, f"%{query}%", f"%{query}%", limit, offset),
         ).fetchall()
         return [dict(r) for r in rows]
     finally:

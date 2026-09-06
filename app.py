@@ -9,11 +9,11 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from signalcraft import analytics, calendar  # noqa: E402
+from signalcraft import analytics, calendar, jobs  # noqa: E402
 from signalcraft.agent import run as agent_run  # noqa: E402
 from signalcraft.content.generator import generate_content, list_content  # noqa: E402
 from signalcraft.db import init_db  # noqa: E402
-from signalcraft.memory import learn_from_performance, recall  # noqa: E402
+from signalcraft.memory import learn_from_performance, recall, remember_feedback  # noqa: E402
 from signalcraft.opportunities import build_opportunities, list_opportunities  # noqa: E402
 from signalcraft.profiles import get_profile, seed_default_profile, update_profile  # noqa: E402
 from signalcraft.research import collect_and_store, list_recent  # noqa: E402
@@ -22,8 +22,23 @@ from signalcraft.trends import detect_trends  # noqa: E402
 st.set_page_config(page_title="SignalCraft AI", page_icon="◉", layout="wide")
 init_db()
 
-NAV = ["Overview", "Trending For You", "Opportunities", "Create", "Library",
-       "Analytics", "Calendar", "Insights", "Agent", "Settings"]
+NAV = ["Overview", "Trending For You", "Content Opportunities", "Create",
+       "Content Library", "Analytics", "Calendar", "AI Insights", "Agent",
+       "Settings"]
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_opps(limit: int = 20):
+    return list_opportunities(limit=limit)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_summary():
+    return analytics.summary()
+
+
+def _bust_cache():
+    st.cache_data.clear()
 
 with st.sidebar:
     st.title("◉ SignalCraft AI")
@@ -35,12 +50,8 @@ with st.sidebar:
         st.success("Demo profile loaded.")
     if st.button("Refresh research + trends"):
         with st.spinner("Collecting research…"):
-            try:
-                collect_and_store(limit=20, use_live=True)
-            except Exception:
-                collect_and_store(limit=20, use_live=False)
-            detect_trends()
-            build_opportunities()
+            jobs.run_refresh(limit=20, use_live=True)
+            _bust_cache()
         st.success("Research, trends and opportunities updated.")
 
 profile = get_profile()
@@ -48,9 +59,9 @@ profile = get_profile()
 # ---------- Overview ----------
 if page == "Overview":
     st.header("What should you talk about right now?")
-    opps = list_opportunities(limit=3)
+    opps = _cached_opps(3)
     recent = list_recent(limit=5)
-    s = analytics.summary()
+    s = _cached_summary()
     c1, c2, c3 = st.columns(3)
     c1.metric("Opportunities", len(list_opportunities(limit=50)))
     c2.metric("Posts tracked", s["posts"])
@@ -74,7 +85,8 @@ if page == "Overview":
 # ---------- Trending ----------
 elif page == "Trending For You":
     st.header("Trending — filtered for you")
-    st.caption("Score = 100 × (0.30 freshness + 0.25 growth + 0.25 relevance + 0.20 novelty).")
+    st.caption("Score = 100 × (0.20 freshness + 0.15 growth + 0.20 relevance + "
+               "0.15 audience fit + 0.10 novelty + 0.05 (1 − competition) + 0.15 creator fit).")
     trends = detect_trends()
     if not trends:
         st.info("No trends. Refresh research first.")
@@ -84,15 +96,17 @@ elif page == "Trending For You":
         for t in trends:
             with st.expander(f"{t['topic']} — {t['score']}"):
                 st.write(f"Freshness {t['freshness']} · Growth {t['growth']} · "
-                         f"Relevance {t['relevance']} · Novelty {t['novelty']}")
+                         f"Relevance {t['relevance']} · Audience fit {t.get('audience_fit')} · "
+                         f"Novelty {t['novelty']} · Competition {t.get('competition')} · "
+                         f"Creator fit {t.get('creator_fit')}")
                 st.write("Evidence:")
                 for e in t["evidence_titles"][:3]:
                     st.markdown(f"- {e}")
 
 # ---------- Opportunities ----------
-elif page == "Opportunities":
+elif page == "Content Opportunities":
     st.header("Personalized opportunities")
-    opps = list_opportunities(limit=20)
+    opps = _cached_opps(20)
     if not opps:
         st.info("No opportunities. Refresh research first.")
     for o in opps:
@@ -118,11 +132,12 @@ elif page == "Create":
         choice = st.selectbox("Opportunity", list(labels))
         plat = st.selectbox("Platform", ["LinkedIn", "X", "Blog"])
         if st.button("Generate", type="primary"):
-            with st.spinner("Strategy → draft → critique…"):
+            with st.spinner("Strategy → draft → critique → validate…"):
                 try:
                     res = generate_content(labels[choice], platform=plat)
                     st.session_state["last_content"] = res["content"]
                     st.session_state["last_critique"] = res["critique"]
+                    _bust_cache()
                 except Exception as e:
                     st.error(f"Generation failed: {e}")
         if "last_content" in st.session_state:
@@ -134,7 +149,7 @@ elif page == "Create":
                 st.json(q["scores"])
 
 # ---------- Library ----------
-elif page == "Library":
+elif page == "Content Library":
     st.header("Content library")
     items = list_content()
     if not items:
@@ -143,11 +158,18 @@ elif page == "Library":
         with st.expander(f"[{c['platform']}] {c['title'][:70]} — Q{c['quality_score']}"):
             st.write(c["body"])
             st.caption(f"Topic: {c.get('opportunity_topic') or '—'} · {c['created_at']}")
+            fb_col1, fb_col2 = st.columns(2)
+            if fb_col1.button("👍 Useful", key=f"up{c['id']}"):
+                remember_feedback(1, c.get("opportunity_topic") or c["title"], True)
+                st.success("Noted — future recommendations will adapt.")
+            if fb_col2.button("👎 Not for me", key=f"dn{c['id']}"):
+                remember_feedback(1, c.get("opportunity_topic") or c["title"], False)
+                st.success("Noted.")
 
 # ---------- Analytics ----------
 elif page == "Analytics":
     st.header("Performance")
-    s = analytics.summary()
+    s = _cached_summary()
     if s["posts"] == 0:
         st.info("Log performance for a post to unlock analytics.")
     else:
@@ -155,8 +177,13 @@ elif page == "Analytics":
         df = pd.DataFrame(s["rows"])
         if not df.empty:
             st.bar_chart(df.set_index("id")["engagement_rate"])
-            st.dataframe(df[["id", "platform", "topic", "impressions", "likes",
-                             "comments", "shares", "engagement_rate"]])
+            cols = [c for c in ["id", "platform", "topic", "impressions", "likes",
+                                "comments", "shares", "reach", "engagement_rate"] if c in df.columns]
+            st.dataframe(df[cols])
+        if s.get("best_formats"):
+            st.subheader("Best formats")
+            for f_ in s["best_formats"][:3]:
+                st.markdown(f"- {f_.get('platform')}: {f_['avg_engagement']}%")
     st.subheader("Log performance (manual entry, §15)")
     items = list_content(limit=50)
     if items:
@@ -169,11 +196,13 @@ elif page == "Analytics":
             d = st.number_input("Shares", 0)
             e = st.number_input("Clicks", 0)
             f = st.number_input("Saves", 0)
+            g = st.number_input("Reach", 0, step=100)
             if st.form_submit_button("Save"):
                 try:
                     analytics.record_performance(cmap[sel], impressions=int(a), likes=int(b),
                                                  comments=int(cc), shares=int(d),
-                                                 clicks=int(e), saves=int(f))
+                                                 clicks=int(e), saves=int(f), reach=int(g))
+                    _bust_cache()
                     st.success("Saved.")
                 except Exception as ex:
                     st.error(str(ex))
@@ -192,7 +221,7 @@ elif page == "Calendar":
         st.markdown(f"- **{en['scheduled_for']}** [{en['platform']}] {en.get('title') or en['notes']} `{en['status']}`")
 
 # ---------- Insights ----------
-elif page == "Insights":
+elif page == "AI Insights":
     st.header("What should you change?")
     for line in analytics.insights():
         st.markdown(f"- {line}")
@@ -237,10 +266,14 @@ elif page == "Settings":
         topics = st.text_input("Preferred topics (comma separated)", ", ".join(profile.topics))
         avoid = st.text_input("Topics to avoid", ", ".join(profile.avoid_topics))
         style = st.text_area("Style notes", profile.style_notes)
+        content_prefs = st.text_area("Content preferences", profile.content_preferences)
+        posting_prefs = st.text_input("Posting preferences", profile.posting_preferences)
         if st.form_submit_button("Save profile"):
             update_profile(1, niche=niche, expertise=expertise, audience=audience,
                            goals=goals, tone=tone,
                            topics=[t.strip() for t in topics.split(",") if t.strip()],
                            avoid_topics=[t.strip() for t in avoid.split(",") if t.strip()],
-                           style_notes=style)
+                           style_notes=style, content_preferences=content_prefs,
+                           posting_preferences=posting_prefs)
+            _bust_cache()
             st.success("Profile saved. Future recommendations will adapt.")

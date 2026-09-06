@@ -15,9 +15,10 @@ def engagement_rate(impressions: int, likes: int, comments: int,
 
 def record_performance(content_id: int, platform: str = "", impressions: int = 0,
                        likes: int = 0, comments: int = 0, shares: int = 0,
-                       clicks: int = 0, saves: int = 0) -> dict:
+                       clicks: int = 0, saves: int = 0, reach: int = 0) -> dict:
     for name, v in {"impressions": impressions, "likes": likes, "comments": comments,
-                    "shares": shares, "clicks": clicks, "saves": saves}.items():
+                    "shares": shares, "clicks": clicks, "saves": saves,
+                    "reach": reach}.items():
         if v < 0:
             raise ValueError(f"{name} must be >= 0")
     er = engagement_rate(impressions, likes, comments, shares, saves, clicks)
@@ -25,8 +26,9 @@ def record_performance(content_id: int, platform: str = "", impressions: int = 0
     try:
         conn.execute(
             "INSERT INTO performance (content_id, platform, impressions, likes, comments,"
-            " shares, clicks, saves, engagement_rate) VALUES (?,?,?,?,?,?,?,?,?)",
-            (content_id, platform, impressions, likes, comments, shares, clicks, saves, er),
+            " shares, clicks, saves, reach, engagement_rate) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (content_id, platform, impressions, likes, comments, shares, clicks, saves,
+             reach, er),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM performance WHERE content_id=? ORDER BY id DESC LIMIT 1",
@@ -40,9 +42,10 @@ def summary(user_id: int = 1) -> dict:
     conn = get_conn()
     try:
         rows = [dict(r) for r in conn.execute(
-            "SELECT c.id, c.platform, c.title, o.topic AS topic,"
+            "SELECT c.id, c.platform, c.title, c.hook, o.topic AS topic,"
             " COALESCE(p.impressions,0) AS impressions, COALESCE(p.likes,0) AS likes,"
             " COALESCE(p.comments,0) AS comments, COALESCE(p.shares,0) AS shares,"
+            " COALESCE(p.reach,0) AS reach,"
             " COALESCE(p.engagement_rate,0) AS engagement_rate"
             " FROM content_items c LEFT JOIN opportunities o ON o.id=c.opportunity_id"
             " LEFT JOIN (SELECT content_id, MAX(id) AS mid FROM performance GROUP BY content_id) latest"
@@ -62,13 +65,19 @@ def summary(user_id: int = 1) -> dict:
         return out
 
     by_topic = agg("topic")
+    by_platform = agg("platform")
+    by_hook = agg("hook")
     return {
         "posts": len(rows),
         "rows": rows,
         "avg_engagement": round(mean([r["engagement_rate"] for r in rows]), 2) if rows else 0.0,
         "best_topics": by_topic[:3],
         "weak_topics": by_topic[-3:][::-1] if len(by_topic) > 1 else [],
-        "by_platform": agg("platform"),
+        "by_platform": by_platform,
+        "best_formats": by_platform[:3],
+        "weak_formats": by_platform[-3:][::-1] if len(by_platform) > 1 else [],
+        "best_hooks": by_hook[:3],
+        "weak_hooks": by_hook[-3:][::-1] if len(by_hook) > 1 else [],
     }
 
 
@@ -88,4 +97,7 @@ def insights(user_id: int = 1) -> list[str]:
     if s["by_platform"]:
         p = s["by_platform"][0]
         out.append(f"Strongest platform: {p.get('platform', p)} at {p['avg_engagement']}%. Prioritize it this week.")
+    if s.get("best_hooks"):
+        h = s["best_hooks"][0]
+        out.append(f"Best hook style: '{str(h.get('hook'))[:80]}' at {h['avg_engagement']}%.")
     return out

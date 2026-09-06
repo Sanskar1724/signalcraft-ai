@@ -15,6 +15,8 @@ from .observability import Trace
 from .opportunities import list_opportunities
 from .profiles import get_profile
 from .research import list_recent, search
+from .security import Budget, check_rate_limit, validate_request
+from .security import MAX_TOOL_CALLS as _MAX_TOOL_CALLS
 
 
 def classify_intent(text: str) -> str:
@@ -29,6 +31,8 @@ def classify_intent(text: str) -> str:
         return "transform_blog"
     if "trending" in t or "niche" in t:
         return "trends"
+    if "angle" in t or "technical angle" in t:
+        return "angle"
     if "week" in t or "ideas" in t or "content ideas" in t:
         return "ideas"
     if "today" in t or "post today" in t or "what should i" in t:
@@ -39,6 +43,9 @@ def classify_intent(text: str) -> str:
 
 
 def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> dict:
+    request = validate_request(request)
+    check_rate_limit(f"agent:{user_id}")
+    budget = Budget()
     gateway = gateway or LLMGateway()
     trace = Trace(request)
     profile = get_profile(user_id)
@@ -53,6 +60,9 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
     def tool(name: str, detail=None):
         nonlocal calls
         calls += 1
+        budget.check()
+        if calls > _MAX_TOOL_CALLS:
+            raise RuntimeError(f"tool budget exceeded (max {_MAX_TOOL_CALLS})")
         trace.add(f"tool:{name}", detail)
 
     if intent == "analyze":
@@ -83,7 +93,7 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
                            f"Recommendation: review quality {c['quality_score']}/10, then publish.\n\n{c['body'][:1500]}"),
                 "intent": intent, "content_id": c["id"], "trace": trace.to_dict()}
 
-    if intent in {"trends", "ideas", "recommend", "why", "general"}:
+    if intent in {"trends", "ideas", "recommend", "why", "angle", "general"}:
         tool("research.search")
         ev = search(user_id, profile.niche.split("+")[0].strip() or profile.niche) or list_recent(user_id)
         tool("opportunities.list")
@@ -93,6 +103,17 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
             return {"answer": ("Observed fact: no opportunities scored yet.\n"
                                "Interpretation: research exists but trends not computed.\n"
                                "Recommendation: click 'Refresh research + trends' on the Trending page."),
+                    "intent": intent, "trace": trace.to_dict()}
+        if intent == "angle":
+            tool("strategy.angle")
+            angle = gateway.generate(
+                f"Creator niche: {profile.niche}. Tone: {profile.tone}. "
+                f"Topic: {opps[0]['topic']}. Give a more technical angle in two sentences.",
+                task="strategy", max_tokens=150).strip()
+            return {"answer": ("Observed fact: top opportunity is "
+                               f"'{opps[0]['topic']}' ({opps[0]['score']}/100).\n"
+                               f"Interpretation: fits {profile.audience}.\n"
+                               f"Recommendation: use this angle:\n\n{angle}"),
                     "intent": intent, "trace": trace.to_dict()}
         top = opps[:3]
         lines = [f"{i+1}. {o['topic']} ({o['score']}/100, conf {o['confidence']}) — {o['angle'][:140]}"

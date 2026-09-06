@@ -18,7 +18,7 @@ Creator -> Profile -> Research -> Trends -> Opportunities -> Strategy
 | §6 No over-engineering | modular monolith | single Streamlit app, SQLite, no microservices |
 | §7 User intelligence | profile influences all | `profiles.py` (12 fields), keywords() used by trends/opps/generator |
 | §8 Current info | pluggable sources, no fabrication | `research/base.py` interface; `rss.py` live; `samples.py` labeled `sample://`; stubs: `github.py`, `reddit.py`, `youtube.py`; `manager.py` dedupes + preserves `source_url` |
-| §9 Content intelligence | personalized ranking, transparent | `trends.py`: `score = 100*(0.30*fresh + 0.25*growth + 0.25*rel + 0.20*nov)` documented in code + docs |
+| §9 Content intelligence | personalized ranking, transparent | `trends.py`: `score = 100*(0.20*fresh + 0.15*growth + 0.20*rel + 0.15*aud_fit + 0.10*nov + 0.05*(1-comp) + 0.15*creator_fit)` documented in code + docs |
 | §10 Opportunity | 11 fields + why-explanation | `opportunities.py`, table `opportunities`, UI shows why_now / why_you / evidence |
 | §11 Content agent | 13-stage controlled workflow, bounded, observable | `agent.py`: intent -> profile -> memory -> research -> trend -> opp -> strategy -> generate -> critique -> store; `Trace` from `observability.py`; max 2 revise loops, max 8 tool calls, timeout guard |
 | §12 Multi-platform | LinkedIn/X/Blog transforms | `content/platforms.py` (real transforms), `generator.py` entry point, easy to add `instagram.py` later |

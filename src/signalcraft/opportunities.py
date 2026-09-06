@@ -30,12 +30,17 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
         boost = get_memory_boost(user_id, t["topic"])
         score = round(max(0, min(100, t["score"] + boost)), 1)
         confidence = round(max(0.2, min(0.95,
-            0.4 + 0.3 * t["relevance"] + 0.2 * t["freshness"] + 0.1 * t["novelty"])), 2)
+            0.30 + 0.20 * t["relevance"] + 0.15 * t.get("audience_fit", 0)
+            + 0.15 * t.get("creator_fit", 0) + 0.10 * t["freshness"]
+            + 0.10 * t["novelty"])), 2)
         why_now = (f"'{t['topic']}' appears in {len(t['evidence'])} recent item(s) "
-                   f"(freshness {t['freshness']}, growth {t['growth']}). "
+                   f"(freshness {t['freshness']}, growth {t['growth']}, "
+                   f"competition {t.get('competition', 0)}). "
                    f"Top evidence: {'; '.join(t['evidence_titles'][:2])}")
         why_you = (f"Matches your niche '{profile.niche or '—'}' "
-                   f"(relevance {t['relevance']}). Audience: {profile.audience or '—'}.")
+                   f"(relevance {t['relevance']}, creator fit {t.get('creator_fit', 0)}, "
+                   f"audience fit {t.get('audience_fit', 0)}). "
+                   f"Audience: {profile.audience or '—'}.")
         angle_prompt = (
             f"Creator niche: {profile.niche}. Expertise: {profile.expertise}. "
             f"Tone: {profile.tone}. Topic: {t['topic']}. "
@@ -70,17 +75,28 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
         rows = conn.execute(
             "SELECT * FROM opportunities WHERE user_id=? ORDER BY score DESC LIMIT ?",
             (user_id, top_n)).fetchall()
-        return [dict(r) for r in rows]
+        ranked = [dict(r) for r in rows]
+        # recommendations log (§20): ranked snapshot of this run
+        conn.execute("DELETE FROM recommendations WHERE user_id=? AND status='suggested'",
+                     (user_id,))
+        for i, r in enumerate(ranked, start=1):
+            conn.execute(
+                "INSERT INTO recommendations (user_id, opportunity_id, reason, rank)"
+                " VALUES (?,?,?,?)",
+                (user_id, r["id"], f"Ranked #{i} at {r['score']}/100", i),
+            )
+        conn.commit()
+        return ranked
     finally:
         conn.close()
 
 
-def list_opportunities(user_id: int = 1, limit: int = 20) -> list[dict]:
+def list_opportunities(user_id: int = 1, limit: int = 20, offset: int = 0) -> list[dict]:
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT * FROM opportunities WHERE user_id=? ORDER BY score DESC LIMIT ?",
-            (user_id, limit)).fetchall()
+            "SELECT * FROM opportunities WHERE user_id=? ORDER BY score DESC LIMIT ? OFFSET ?",
+            (user_id, limit, offset)).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
