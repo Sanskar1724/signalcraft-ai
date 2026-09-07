@@ -1,6 +1,22 @@
 # SignalCraft AI
 
-**Your personal AI content strategist** — not another AI writing tool.
+<p align="center">
+  <img src="apps/web/public/logo.png" alt="SignalCraft AI logo" width="120" />
+</p>
+
+<p align="center"><strong>Your personal AI content strategist</strong> — not another AI writing tool.</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/tests-40_passing-brightgreen?logo=pytest&logoColor=white" alt="Tests" />
+</p>
+
+<p align="center">
+  <img src="apps/web/public/og-image.png" alt="SignalCraft AI — Research what matters. Create what resonates. Learn what works." width="100%" />
+</p>
 
 SignalCraft learns who a creator is, watches what is happening in their niche
 right now, and tells them *what to talk about, how to say it on each platform,
