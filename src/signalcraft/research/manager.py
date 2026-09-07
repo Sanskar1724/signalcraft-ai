@@ -7,10 +7,10 @@ import sqlite3
 from ..db import get_conn, new_uuid
 from ..observability import log
 from ..profiles import get_profile
-from ..trends import freshness_of, tokenize
 from .base import BaseSource, ResearchItem
 from .extra_sources import (GitHubSource, NewsSource, RedditSource,
                             SearchTrendsSource, WebSearchSource, YouTubeSource)
+from .normalize import normalize_doc
 from .rss import RSSSource
 from .samples import SampleSource
 
@@ -21,6 +21,7 @@ SOURCE_TYPES = {"rss": "rss", "sample": "sample", "github": "api", "reddit": "ap
 
 
 def _enrich(it: ResearchItem, profile_keys: set[str]) -> dict:
+    from ..trends import freshness_of, tokenize  # lazy: trends imports this package
     toks = tokenize(f"{it.title} {it.summary}")
     overlap = {t for t in toks} & profile_keys
     relevance = round(len(overlap) / max(1, len(set(toks))), 3)
@@ -42,14 +43,26 @@ def collect_and_store(query: str = "", limit: int = 20, user_id: int = 1,
                    NewsSource(), WebSearchSource(), SearchTrendsSource(),
                    SampleSource()]
     seen: dict[str, ResearchItem] = {}
+    skipped = 0
     for src in sources:
         try:
             for it in src.fetch(query=query, limit=limit):
-                key = (it.source_url or "") + "|" + it.title
+                # Normalize at the boundary (§5): raw source output never
+                # reaches the database, trends, or content.
+                norm = normalize_doc(it.source, it.title, it.summary, it.source_url)
+                if norm is None:
+                    skipped += 1
+                    continue
+                key = (norm["source_url"] or "") + "|" + norm["title"].lower()
                 if key not in seen:
-                    seen[key] = it
+                    seen[key] = ResearchItem(
+                        source=norm["source"], title=norm["title"],
+                        summary=norm["summary"], source_url=norm["source_url"],
+                        published_at=it.published_at, niche_tags=it.niche_tags)
         except Exception as e:  # §32: continue with available sources
             log.warning("source %s failed: %s", getattr(src, "name", "?"), e)
+    if skipped:
+        log.info("research normalization skipped %d invalid document(s)", skipped)
     conn = get_conn()
     try:
         for it in list(seen.values())[:limit]:

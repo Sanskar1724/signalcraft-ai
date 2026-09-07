@@ -14,7 +14,7 @@ from ..repositories.content import get_content_detail
 from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, LoginIn,
                                OnboardingStep, PasswordIn, PerformanceIn,
                                PreferencesUpdate, ProfileUpdate, ResearchRun,
-                               ReviseIn, ScheduleIn, SignupIn, StatusIn)
+                               ReviseIn, SaveIn, ScheduleIn, SignupIn, StatusIn)
 from ..services.services import (agent, content, context, identity, onboarding,
                                  opportunity, preferences, profile, research,
                                  trend)
@@ -178,6 +178,18 @@ async def post_critique(body: CritiqueIn) -> dict:
 @router.post("/content/revise")
 async def post_revise(body: ReviseIn, user_id: int = Depends(get_user_id)) -> dict:
     return content.revise(body.content_id, user_id)
+
+
+@router.post("/content/save")
+async def post_save(body: SaveIn, user_id: int = Depends(get_user_id)) -> dict:
+    """Explicit Save (§13): only this creates a permanent library record."""
+    return content.save(user_id, body.opportunity_id, body.platform, body.title,
+                        body.body, body.hook, body.cta, body.brief)
+
+
+@router.put("/opportunities/{opportunity_id}/dismiss")
+async def put_dismiss(opportunity_id: int, user_id: int = Depends(get_user_id)) -> dict:
+    return opportunity.dismiss(user_id, opportunity_id)
 
 
 @router.get("/content", response_model=list[ContentItem])

@@ -34,20 +34,28 @@ def _tokens(s: str) -> int:
 
 
 class MockProvider(BaseProvider):
-    """Deterministic offline provider. Never calls network. Good for tests/dev."""
+    """Deterministic offline provider. Never calls network. Good for tests/dev.
+
+    Emits clean, leak-free text (provenance is tracked in llm_requests, not
+    in the words). Sanitizers treat this like any other provider output.
+    """
 
     name = "mock"
 
     def generate(self, prompt: str, task: str = "generation", max_tokens: int = 800) -> LLMResult:
         t0 = time.time()
-        digest = hashlib.md5(f"{task}:{prompt}".encode()).hexdigest()[:8]
-        # Task-aware stubs — deterministic, clearly marked as draft assistance.
+        # Deterministic per input so tests and demos are reproducible.
+        digest = hashlib.md5(f"{task}:{prompt}".encode()).hexdigest()
+        seed = int(digest[:8], 16)
         if task == "strategy":
-            text = (
-                f"[Mock strategy {digest}] Goal: pick one sharp angle. "
-                f"Structure: hook -> 3 insights -> proof -> CTA. "
-                f"Keep it specific, avoid generic hype. Prompt context: {prompt[:220]}"
-            )
+            angles = [
+                "Commit to one sharp angle and prove it with a concrete example.",
+                "Take the contrarian view and support it with specific evidence.",
+                "Turn the insight into a practical before/after story.",
+            ]
+            text = (angles[seed % len(angles)] + " Structure: a concrete hook, "
+                    "three specific insights, one piece of proof, and a direct "
+                    "call to action. Avoid generic hype; use examples.")
         elif task == "critique":
             text = json.dumps({
                 "relevance": 7, "clarity": 7, "hook": 6, "platform_fit": 7,
@@ -58,10 +66,16 @@ class MockProvider(BaseProvider):
         elif task == "classification":
             text = json.dumps({"label": "relevant", "confidence": 0.6, "mock_id": digest})
         else:
-            text = (
-                f"[Mock draft {digest}] {prompt[:400]}\n\n"
-                f"Key point: be specific and useful. Add one example and one takeaway."
-            )
+            bodies = [
+                "Start with the most surprising specific detail. Make one claim, "
+                "support it with a concrete example, and end with a single takeaway "
+                "the reader can use this week.",
+                "Open on a real scenario the reader recognizes. Explain what changed, "
+                "why it matters now, and give one practical next step.",
+                "Lead with a clear opinion. Back it with observed evidence, note one "
+                "limitation honestly, and close with what to try next.",
+            ]
+            text = bodies[seed % len(bodies)]
         latency = int((time.time() - t0) * 1000) + 1
         return LLMResult(text, "mock", "mock-1", latency, _tokens(prompt), _tokens(text))
 

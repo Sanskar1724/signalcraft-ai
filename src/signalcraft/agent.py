@@ -103,9 +103,17 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
 
     if intent in {"trends", "ideas", "recommend", "why", "angle", "general"}:
         tool("research.search")
-        ev = search(user_id, profile.niche.split("+")[0].strip() or profile.niche) or list_recent(user_id)
+        try:
+            ev = search(user_id, profile.niche.split("+")[0].strip() or profile.niche) or list_recent(user_id)
+        except Exception as e:
+            trace.add("tool_error", f"research.search failed: {e}")
+            ev = []
         tool("opportunities.list")
-        opps = list_opportunities(user_id)
+        try:
+            opps = list_opportunities(user_id)
+        except Exception as e:
+            trace.add("tool_error", f"opportunities.list failed: {e}")
+            opps = []
         trace.add("opportunity_selected", opps[0]["topic"] if opps else None)
         if not opps:
             return {"answer": ("Observed fact: no opportunities scored yet.\n"
@@ -114,10 +122,11 @@ def run(request: str, user_id: int = 1, gateway: LLMGateway | None = None) -> di
                     "intent": intent, "trace": trace.to_dict()}
         if intent == "angle":
             tool("strategy.angle")
-            angle = gateway.generate(
+            from .content.sanitize import scrub as _scrub
+            angle = _scrub(gateway.generate(
                 f"Creator niche: {profile.niche}. Tone: {profile.tone}. "
                 f"Topic: {opps[0]['topic']}. Give a more technical angle in two sentences.",
-                task="strategy", max_tokens=150).strip()
+                task="strategy", max_tokens=150).strip())
             return {"answer": ("Observed fact: top opportunity is "
                                f"'{opps[0]['topic']}' ({opps[0]['score']}/100).\n"
                                f"Interpretation: fits {profile.audience}.\n"

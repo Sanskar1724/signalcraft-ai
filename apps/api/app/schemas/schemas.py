@@ -49,6 +49,16 @@ class ReviseIn(BaseModel):
     content_id: int
 
 
+class SaveIn(BaseModel):
+    opportunity_id: int | None = None
+    platform: str = "LinkedIn"
+    title: str = ""
+    body: str = Field(min_length=1, max_length=6000)
+    hook: str = ""
+    cta: str = ""
+    brief: dict = Field(default_factory=dict)
+
+
 class StatusIn(BaseModel):
     status: str = "draft"
 

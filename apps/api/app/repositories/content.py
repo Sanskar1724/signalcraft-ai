@@ -19,7 +19,7 @@ def get_content_detail(content_id: int, user_id: int = 1) -> dict:
             raise ValueError(f"content {content_id} not found")
         out = dict(row)
         out["versions"] = [dict(r) for r in conn.execute(
-            "SELECT version, score, created_at FROM content_versions"
+            "SELECT version, body, score, created_at FROM content_versions"
             " WHERE content_id=? ORDER BY version", (content_id,)).fetchall()]
         perf = conn.execute(
             "SELECT * FROM content_performance WHERE content_id=? ORDER BY id DESC LIMIT 1",

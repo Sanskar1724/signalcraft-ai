@@ -134,6 +134,26 @@ class opportunity:
         return _opps.build_opportunities(user_id, top_n)
 
     @staticmethod
+    def dismiss(user_id: int = 1, opportunity_id: int = 0) -> dict:
+        from signalcraft import memory as _mem
+        from signalcraft.db import get_conn
+        conn = get_conn()
+        try:
+            row = conn.execute("SELECT * FROM content_opportunities WHERE id=? AND user_id=?",
+                               (opportunity_id, user_id)).fetchone()
+            if row is None:
+                raise ValueError(f"opportunity {opportunity_id} not found")
+            conn.execute("UPDATE content_opportunities SET status='dismissed' WHERE id=?",
+                         (opportunity_id,))
+            conn.commit()
+            topic = row["topic"]
+        finally:
+            conn.close()
+        # Dismissal is feedback: weak-topic memory demotes similar ideas (§10).
+        _mem.remember(user_id, "weak_topic", topic.lower()[:80], "dismissed by creator", 0.7)
+        return {"ok": True, "opportunity_id": opportunity_id}
+
+    @staticmethod
     def list(user_id: int = 1, limit: int = 20, offset: int = 0) -> list[dict]:
         return _opps.list_opportunities(user_id, limit, offset)
 
@@ -143,11 +163,20 @@ class content:
     def generate(opportunity_id: int, platform: str = "LinkedIn", user_id: int = 1,
                  tone: str | None = None, length: str = "medium",
                  style_match: bool = True, grounded: bool = True) -> dict:
+        # §13: preview only — explicit Save persists.
         res = _generate(opportunity_id, platform=platform, user_id=user_id,
                         tone=tone, length=length, style_match=style_match,
-                        grounded=grounded)
+                        grounded=grounded, persist=False)
         return {"content": res["content"], "critique": res["critique"],
-                "brief": res["brief"].model_dump()}
+                "brief": res["brief"].model_dump(), "persisted": False}
+
+    @staticmethod
+    def save(user_id: int = 1, opportunity_id: int | None = None,
+             platform: str = "LinkedIn", title: str = "", body: str = "",
+             hook: str = "", cta: str = "", brief: dict | None = None) -> dict:
+        from signalcraft.content import save_draft
+        return save_draft(user_id, platform, title, body, hook, cta,
+                          opportunity_id, brief)
 
     @staticmethod
     def critique(body: str, platform: str = "LinkedIn", topic: str = "") -> dict:
@@ -165,7 +194,8 @@ class content:
             task="generation", max_tokens=500).strip()
         if fix.startswith("[Mock draft"):
             fix = fix.split("]", 1)[-1].strip()
-        new_body = (detail["body"] + f"\n\nRefinement: {fix[:800]}")[:6000]
+        from signalcraft.content.sanitize import scrub as _scrub
+        new_body = _scrub(detail["body"] + f"\n\nRefinement: {fix[:800]}")[:6000]
         check = _validate(new_body, platform=detail["platform"])
         if not check["ok"]:
             raise ValueError(f"revision failed validation: {check['errors']}")
@@ -220,10 +250,12 @@ class agent:
     @staticmethod
     def chat(message: str, user_id: int = 1) -> dict:
         from signalcraft.agent import run
+        from signalcraft.contracts import AgentResult
         from ..api.deps import current_request_id
         out = run(message, user_id=user_id)
         out["request_id"] = current_request_id()
-        return out
+        return AgentResult(**{k: out.get(k) for k in
+                              ("answer", "intent", "request_id", "trace")}).model_dump()
 
     @staticmethod
     def learn(user_id: int = 1) -> dict:

@@ -95,6 +95,8 @@ def update_profile(user_id: int = 1, **fields) -> Profile:
             raise ValueError(f"invalid profile field: {k}")
         if k in {"platforms", "topics", "avoid_topics"} and isinstance(v, list):
             v = json.dumps(v)
+        if k == "goals" and isinstance(v, list):
+            v = ", ".join(str(x).strip() for x in v if str(x).strip())
         cols.append(f"{k}=?")
         vals.append(v)
     if cols:

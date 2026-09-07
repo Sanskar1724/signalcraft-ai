@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from .config import settings
+from .content.sanitize import scrub
 from .db import get_conn, new_uuid
 from .llm import LLMGateway
 from .memory import get_memory_boost
@@ -62,7 +63,7 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
             f"Suggest one sharp content angle in one sentence."
         )
         try:
-            angle = gateway.generate(angle_prompt, task="strategy", max_tokens=120).strip()
+            angle = scrub(gateway.generate(angle_prompt, task="strategy", max_tokens=120).strip())
         except Exception:
             angle = (f"How {t['topic']} changes day-to-day work "
                      f"for {profile.audience or 'your audience'}.")

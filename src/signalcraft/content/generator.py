@@ -19,6 +19,7 @@ from ..observability import Trace
 from ..profiles import get_profile
 from .critic import critique
 from .platforms import format_blog, format_linkedin, format_x
+from .sanitize import scrub
 
 MAX_BODY = 6000
 LENGTH_TOKENS = {"short": 250, "medium": 450, "long": 750}
@@ -118,7 +119,7 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                      user_id: int = 1, gateway: LLMGateway | None = None,
                      trace: Trace | None = None, tone: str | None = None,
                      length: str = "medium", style_match: bool = True,
-                     grounded: bool = True) -> dict:
+                     grounded: bool = True, persist: bool = True) -> dict:
     if length not in LENGTH_TOKENS:
         raise ValueError(f"invalid length: {length}")
     gateway = gateway or LLMGateway()
@@ -151,11 +152,13 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                             "evidence_n": len(evidence)})
 
     core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length])
+    core = scrub(core)  # nothing internal survives to the draft (§12)
     trace.add("strategy", core[:200])
 
+    angle = scrub(opp.get("angle", ""))
     fmt = {"LinkedIn": format_linkedin, "X": format_x, "Blog": format_blog}.get(platform, format_linkedin)
-    hook, body, cta = fmt(opp["topic"], opp.get("angle", ""), core, profile.tone)
-    body = body[:MAX_BODY]
+    hook, body, cta = fmt(opp["topic"], angle, core, profile.tone)
+    body = scrub(body[:MAX_BODY])
     trace.add("draft", {"hook": hook, "chars": len(body)})
 
     result = critique(body, platform=platform, topic=opp["topic"])
@@ -172,50 +175,134 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
             task="generation", max_tokens=500).strip()
         if fix.startswith("[Mock draft"):
             fix = fix.split("]", 1)[-1].strip()
-        body = (body + f"\n\nRefinement: {fix[:800]}")[:MAX_BODY]
+        body = scrub(body + f"\n\nRefinement: {fix[:800]}")[:MAX_BODY]
         result = critique(body, platform=platform, topic=opp["topic"])
         trace.add("revise", {"overall": result["overall"]})
 
-    validation = validate(body, platform=platform)
+    validation = validate(body, platform=platform, topic=opp["topic"], grounded=grounded)
     trace.add("validate", validation)
     if not validation["ok"]:
+        # §26: never save corrupted output — fail loudly instead.
         raise ValueError(f"content validation failed: {validation['errors']}")
 
+    if not persist:
+        # §13: preview only — nothing touches the library until explicit Save.
+        preview = {"id": None, "uuid": None, "user_id": user_id,
+                   "opportunity_id": opportunity_id, "platform": platform,
+                   "title": hook[:200], "body": body, "hook": hook[:200],
+                   "cta": cta[:200], "quality_score": result["overall"],
+                   "status": "preview", "created_at": ""}
+        return {"content": preview, "critique": result, "brief": brief,
+                "persisted": False, "trace": trace.to_dict()}
+
+    if _is_duplicate(user_id, body):
+        raise ValueError("duplicate of existing content — refusing to store twice")
+
+    cid = _store(user_id, opportunity_id, platform, hook, body, cta,
+                 result["overall"], brief.model_dump_json(), json.dumps(result))
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
+        return {"content": dict(row), "critique": result, "brief": brief,
+                "persisted": True, "trace": trace.to_dict()}
+    finally:
+        conn.close()
+
+
+def validate(body: str, platform: str = "LinkedIn", topic: str = "",
+               grounded: bool = True) -> dict:
+    """Deterministic quality gate (§12): leakage, shape, platform fit, grounding."""
+    import re as _re
+    from .rules import get_rules
+    from .sanitize import leak_found
+    errors: list[str] = []
+    warnings: list[str] = []
+    text = (body or "").strip()
+    if len(text) < 40:
+        errors.append("body too short (<40 chars)")
+    if len(text) > MAX_BODY:
+        errors.append(f"body exceeds {MAX_BODY} chars")
+    from .rules import PLATFORM_RULES, get_rules
+    from .sanitize import leak_found
+    if platform not in PLATFORM_RULES:
+        errors.append(f"unknown platform: {platform}")
+        return {"ok": False, "errors": errors, "warnings": warnings}
+    rules = get_rules(platform)
+    words = _re.findall(r"[A-Za-z0-9']+", text)
+    if len(words) < rules.get("min_words", 0):
+        errors.append(f"too short for {platform} (min {rules.get('min_words')} words)")
+    if len(words) > rules.get("max_words", 10**9):
+        errors.append(f"too long for {platform} (max {rules.get('max_words')} words)")
+    if platform == "X" and len(text) > 1500 and "1/" not in text:
+        errors.append("X content this long needs thread structure")
+    leaks = leak_found(text)
+    if leaks:
+        errors.append(f"prompt leakage detected: {', '.join(leaks[:3])}")
+    if grounded and _re.search(r"\d+%|\$\d|\b\d+x\b", text):
+        errors.append("unverified statistics while grounding is required")
+    return {"ok": not errors, "errors": errors, "warnings": warnings}
+
+
+def _body_sha(body: str) -> str:
+    import hashlib as _hl
+    return _hl.sha256(body.encode()).hexdigest()
+
+
+def _is_duplicate(user_id: int, body: str) -> bool:
+    target = _body_sha(body)
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT body FROM content WHERE user_id=?", (user_id,)).fetchall()
+        return any(_body_sha(r["body"]) == target for r in rows)
+    finally:
+        conn.close()
+
+
+def _store(user_id: int, opportunity_id: int | None, platform: str, hook: str,
+           body: str, cta: str, score: float, brief_json: str,
+           critique_json: str) -> int:
     conn = get_conn()
     try:
         cur = conn.execute(
             "INSERT INTO content (uuid, user_id, opportunity_id, platform, title, body,"
             " hook, cta, quality_score)"
             " VALUES (?,?,?,?,?,?,?,?,?)",
-            (new_uuid(), user_id, opportunity_id, platform, hook[:200], body, hook[:200],
-             cta[:200], result["overall"]),
+            (new_uuid(), user_id, opportunity_id, platform, hook[:200], body,
+             hook[:200], cta[:200], score),
         )
         cid = cur.lastrowid
         conn.execute(
-            "INSERT INTO content_versions (uuid, content_id, version, brief, body, critique, score)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (new_uuid(), cid, 1, brief.model_dump_json(), body,
-             json.dumps(result), result["overall"]),
+            "INSERT INTO content_versions (uuid, content_id, version, brief, body,"
+            " critique, score) VALUES (?,?,?,?,?,?,?)",
+            (new_uuid(), cid, 1, brief_json, body, critique_json, score),
         )
         conn.commit()
-        row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
-        return {"content": dict(row), "critique": result, "brief": brief,
-                "trace": trace.to_dict()}
+        return int(cid)
     finally:
         conn.close()
 
 
-def validate(body: str, platform: str = "LinkedIn") -> dict:
-    """Final validation gate (§11): non-empty, within caps, platform sane."""
-    errors = []
-    text = (body or "").strip()
-    if len(text) < 40:
-        errors.append("body too short (<40 chars)")
-    if len(text) > MAX_BODY:
-        errors.append(f"body exceeds {MAX_BODY} chars")
-    if platform not in {"LinkedIn", "X", "Blog"}:
-        errors.append(f"unknown platform: {platform}")
-    return {"ok": not errors, "errors": errors}
+def save_draft(user_id: int, platform: str, title: str, body: str,
+               hook: str = "", cta: str = "", opportunity_id: int | None = None,
+               brief: dict | None = None) -> dict:
+    """Explicit Save (§13): validate + dedupe + persist a preview as v1 draft."""
+    import json as _json
+    from .sanitize import scrub as _scrub
+    body = _scrub(body)
+    validation = validate(body, platform=platform, grounded=False)
+    if not validation["ok"]:
+        raise ValueError(f"content validation failed: {validation['errors']}")
+    if _is_duplicate(user_id, body):
+        raise ValueError("duplicate of existing content — refusing to store twice")
+    result = critique(body, platform=platform)
+    cid = _store(user_id, opportunity_id, platform, hook or title[:200], body,
+                 cta, result["overall"], _json.dumps(brief or {}), _json.dumps(result))
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
+        return {"content": dict(row), "critique": result}
+    finally:
+        conn.close()
 
 
 def list_content(user_id: int = 1, limit: int = 50, offset: int = 0,

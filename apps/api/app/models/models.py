@@ -70,6 +70,7 @@ class ContentItem(BaseModel):
 
 class ContentVersion(BaseModel):
     version: int
+    body: str = ""
     score: float = 0
     created_at: str = ""
 

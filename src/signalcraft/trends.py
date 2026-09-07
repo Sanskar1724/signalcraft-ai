@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from .config import settings
 from .db import get_conn, new_uuid
 from .profiles import get_profile
+from .research.normalize import BANNED_URL_TOKENS, looks_like_url_junk
 
 __all__ = ["tokenize", "freshness_of", "detect_trends"]
 
@@ -31,8 +32,9 @@ STOP = {"the", "and", "for", "with", "from", "that", "this", "into", "using",
 
 
 def tokenize(s: str) -> list[str]:
+    """Content tokens only: stopwords and URL/parser junk never become topics."""
     return [w for w in re.findall(r"[a-zA-Z][a-zA-Z0-9+\-#]*", s.lower())
-            if w not in STOP and len(w) > 2]
+            if w not in STOP and w not in BANNED_URL_TOKENS and len(w) > 2]
 
 
 def freshness_of(published_at: str) -> float:
@@ -108,7 +110,25 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
             "evidence_titles": [s["title"] for s in sup],
         })
     scored.sort(key=lambda d: d["trend_score"], reverse=True)
-    top = scored[:top_n]
+
+    # Dedupe: drop topics that are substrings/duplicates of a higher-scored
+    # topic, merging their evidence (§6 remove duplicates).
+    deduped: list[dict] = []
+    for cand in scored:
+        dup_of = None
+        for kept in deduped:
+            if cand["topic"] == kept["topic"] or cand["topic"] in kept["topic"] \
+                    or kept["topic"] in cand["topic"]:
+                dup_of = kept
+                break
+        if dup_of is None:
+            deduped.append(cand)
+        else:
+            for eid, title in zip(cand["evidence"], cand["evidence_titles"]):
+                if eid not in dup_of["evidence"]:
+                    dup_of["evidence"].append(eid)
+                    dup_of["evidence_titles"].append(title)
+    top = deduped[:top_n]
 
     conn = get_conn()
     try:
