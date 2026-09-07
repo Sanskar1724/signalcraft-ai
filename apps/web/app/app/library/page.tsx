@@ -56,7 +56,7 @@ export default function LibraryPage() {
       </div>
       {items.length === 0 && <Empty text="Nothing matches — clear the filters." />}
       {items.map((c) => (
-        <Card key={c.id}>
+        <Card key={c.id} lift>
           <div className="row" style={{ alignItems: "center", cursor: "pointer" }} onClick={() => open(c.id)}>
             <Pill kind={c.platform}>{c.platform}</Pill>
             <b>{c.title}</b>

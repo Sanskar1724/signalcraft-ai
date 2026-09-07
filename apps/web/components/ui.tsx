@@ -1,17 +1,48 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-export function Card({ children, glow = false }: { children: ReactNode; glow?: boolean }) {
-  return <div className={"card" + (glow ? " glow" : "")}>{children}</div>;
+export function Card({ children, glow = false, lift = false }: { children: ReactNode; glow?: boolean; lift?: boolean }) {
+  return <div className={"card" + (glow ? " glow" : "") + (lift ? " lift" : "")}>{children}</div>;
 }
 
 export function Stat({ value, label, hot = false }: { value: string; label: string; hot?: boolean }) {
   return (
-    <div className={"metric" + (hot ? " hot" : "")}>
-      <b>{value}</b>
+    <div className="metric" style={{ transition: "transform .18s ease, border-color .18s ease" }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; }}>
+      <b><CountUp text={value} /></b>
       <span>{label}</span>
     </div>
   );
+}
+
+export function CountUp({ text }: { text: string }) {
+  const m = text.match(/^(-?[\d.]+)(.*)$/);
+  const [n, setN] = useState(text);
+  useEffect(() => {
+    if (!m) {
+      setN(text);
+      return;
+    }
+    const target = parseFloat(m[1]);
+    const suffix = m[2];
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !Number.isFinite(target)) {
+      setN(text);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / 900);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const cur = target * eased;
+      setN((target % 1 === 0 ? String(Math.round(cur)) : cur.toFixed(1)) + suffix);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [text]);
+  return <>{n}</>;
 }
 
 export function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {

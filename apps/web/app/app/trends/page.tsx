@@ -31,7 +31,7 @@ export default function TrendingPage() {
       <p className="sub muted">Weights: 30% growth · 25% freshness · 20% relevance · 15% momentum · 10% novelty.</p>
       {rows.length === 0 && <Empty text="No topics match — clear the filter." />}
       {rows.map((t) => (
-        <Card key={t.topic}>
+        <Card key={t.topic} lift>
           <h3>{t.topic} — {t.trend_score}</h3>
           <ScoreBar value={t.trend_score} />
           <div className="dims">

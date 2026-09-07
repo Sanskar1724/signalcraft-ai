@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Logo from "../../components/Logo";
 import SignalField from "../../components/SignalField";
+import { toast } from "../../components/fx";
 import { api } from "../../lib/api";
 import { getToken } from "../../lib/auth";
 
@@ -31,12 +32,17 @@ function Chips({ options, value, onChange, multi = true }: {
       : [o]);
   }
   return (
-    <div className="chips">
-      {options.map((o) => (
-        <button key={o} type="button" className={"chip" + (value.includes(o) ? " on" : "")} onClick={() => toggle(o)}>
-          {o}
-        </button>
-      ))}
+    <div className="chips" role="group">
+      {options.map((o) => {
+        const on = value.includes(o);
+        return (
+          <button key={o} type="button" aria-pressed={on}
+            className={"chip" + (on ? " on" : "")} onClick={() => toggle(o)}>
+            <span className="box" aria-hidden>✓</span>
+            <span>{o}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -57,6 +63,51 @@ export default function OnboardingPage() {
     formats: [], frequency: "", platforms: ["LinkedIn", "X", "Blog"],
   });
   const set = (k: string, v: string | string[]) => setF({ ...f, [k]: v });
+  const [restored, setRestored] = useState(false);
+
+  // Restore previously saved progress so refresh/back never loses selections.
+  useEffect(() => {
+    let live = true;
+    Promise.all([
+      api.profile().catch(() => null),
+      api.getPreferences().catch(() => null),
+      api.context().catch(() => null),
+    ]).then(([p, pr, ctx]) => {
+      if (!live || !p) return;
+      const goals = typeof p.goals === "string"
+        ? p.goals.split(",").map((g: string) => g.trim()).filter(Boolean) : [];
+      const tracked = ctx && Array.isArray((ctx as Record<string, unknown>).tracked_topics)
+        ? ((ctx as Record<string, unknown>).tracked_topics as string[]) : [];
+      const segs = ctx && Array.isArray((ctx as Record<string, unknown>).audience_segments)
+        ? ((ctx as Record<string, unknown>).audience_segments as string[]) : [];
+      setF((f) => ({
+        ...f,
+        name: p.name && p.name !== "Creator" ? p.name : f.name,
+        role: p.role || f.role,
+        bio: p.bio || f.bio,
+        location: p.location || f.location,
+        niche: p.niche || f.niche,
+        secondary_topics: tracked.filter((t) => !(p.topics ?? []).includes(t)),
+        expertise_level: p.expertise_level || f.expertise_level,
+        audience: p.audience || f.audience,
+        audience_segments: segs.length ? segs : f.audience_segments,
+        goals: goals.length ? goals : (f.goals as string[]),
+        writing_style: p.writing_style || f.writing_style,
+        tone: p.tone || f.tone,
+        style_notes: p.style_notes || f.style_notes,
+        topics: (p.topics ?? []).length ? p.topics : (f.topics as string[]),
+        avoid_topics: (p.avoid_topics ?? []).length ? p.avoid_topics : (f.avoid_topics as string[]),
+        formats: pr && pr.formats.length ? pr.formats : (f.formats as string[]),
+        frequency: (pr && pr.frequency) || (f.frequency as string),
+        platforms: (p.platforms ?? []).length ? p.platforms : (f.platforms as string[]),
+      }));
+      if (p.niche) {
+        setRestored(true);
+        toast("Restored your saved progress.");
+      }
+    });
+    return () => { live = false; };
+  }, []);
 
   if (typeof window !== "undefined" && !getToken()) {
     router.replace("/login");
@@ -100,10 +151,23 @@ export default function OnboardingPage() {
   async function finish() {
     setBusy(true);
     setBuilding(true);
+    setError("");
     try {
       await save(collect(2));
       const r = await api.onboardComplete();
       setDone(r.summary);
+    } catch { /* shown */ } finally {
+      // Loading shows only while submitting; success swaps screens anyway.
+      setBusy(false);
+      setBuilding(false);
+    }
+  }
+
+  async function saveExit() {
+    setBusy(true);
+    try {
+      await save(collect(step));
+      toast("Progress saved — continue anytime.");
     } catch { /* shown */ } finally {
       setBusy(false);
     }
@@ -137,6 +201,7 @@ export default function OnboardingPage() {
         <p className="muted">{explain}</p>
         <div className="steps">{META.map((_, i) => <i key={i} className={i <= step ? "on" : ""} />)}</div>
         <p className="muted">Progress saves automatically as you continue.</p>
+        {restored && <p className="muted">✓ Restored your saved selections.</p>}
       </aside>
       <div>
         <div className="card">
@@ -210,7 +275,9 @@ export default function OnboardingPage() {
           {error && <p className="error">{error}</p>}
           <div className="row" style={{ marginTop: 14 }}>
             {step > 0 && <button className="btn ghost" onClick={() => setStep(step - 1)} disabled={busy}>Back</button>}
+            <button className="btn ghost" onClick={saveExit} disabled={busy}>Save &amp; exit</button>
             <span style={{ flex: 1 }} />
+            <span className="muted">Step {step + 1} of 3</span>
             {step < 2 ? (
               <button className="btn" onClick={() => next()} disabled={busy || (step === 0 && (!(f.name as string).trim() || !(f.niche as string).trim()))}>
                 {busy ? "Saving…" : "Continue →"}

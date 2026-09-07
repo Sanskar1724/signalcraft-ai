@@ -38,7 +38,7 @@ export default function OpportunitiesPage() {
       </div>
       {rows.length === 0 && <Empty text="No opportunities match — clear the filters." />}
       {rows.map((o) => (
-        <Card key={o.id}>
+        <Card key={o.id} lift>
           <h3>{o.topic}</h3>
           <div className="row" style={{ alignItems: "center" }}>
             <span className="muted">Opportunity</span>
