@@ -56,8 +56,22 @@ def test_full_flow(client):
     assert opps and opps[0]["score"] > 0
     gen = client.post("/api/content/generate",
                       json={"opportunity_id": opps[0]["id"], "platform": "LinkedIn"}).json()
-    cid = gen["content"]["id"]
+    assert gen["persisted"] is False and gen["content"]["id"] is None
     assert gen["brief"]["topic"] == opps[0]["topic"]
+    assert "Mock" not in gen["content"]["body"] and "brief" not in gen["content"]["body"].lower()
+    saved = client.post("/api/content/save", json={
+        "opportunity_id": opps[0]["id"], "platform": "LinkedIn",
+        "title": gen["content"]["title"], "body": gen["content"]["body"],
+        "hook": gen["content"]["hook"], "brief": gen["brief"]}).json()
+    cid = saved["content"]["id"]
+    assert saved["content"]["id"] > 0
+    # saving the same body twice is rejected
+    assert client.post("/api/content/save", json={
+        "platform": "LinkedIn", "title": "x", "body": gen["content"]["body"]}).status_code == 400
+    # leaked internals are rejected at save
+    assert client.post("/api/content/save", json={
+        "platform": "LinkedIn", "title": "x",
+        "body": "The user says we need to write about " + "agents. " * 20}).status_code == 400
     crit = client.post("/api/content/critique",
                        json={"body": gen["content"]["body"], "platform": "LinkedIn"}).json()
     assert crit["overall"] >= 0
@@ -67,6 +81,7 @@ def test_full_flow(client):
     assert len(items) >= 1
     detail = client.get(f"/api/content/{cid}").json()
     assert len(detail["versions"]) == 2 and detail["brief"]
+    assert detail["versions"][0]["body"] != detail["versions"][1]["body"]
     perf = client.post(f"/api/content/{cid}/performance",
                        json={"impressions": 1000, "likes": 60}).json()
     assert perf["engagement_rate"] == 6.0
@@ -75,8 +90,10 @@ def test_full_flow(client):
     chat = client.post("/api/agent/chat", json={"message": "What should I post today?"}).json()
     assert "Observed fact" in chat["answer"] and chat["request_id"]
     assert chat["trace"]["steps"]
+    assert "user says" not in chat["answer"].lower()
     assert client.post("/api/agent/learn").json()["learned"]
     assert client.get("/api/debug/llm").json()["usage"]
+    assert client.put(f"/api/opportunities/{opps[0]['id']}/dismiss").json()["ok"] is True
 
 
 def test_validation_and_404_envelope(client):
@@ -158,7 +175,12 @@ def test_google_boundary_and_status_flow(client, monkeypatch):
     assert client.get("/api/trends", params={"sort": "latest"}).status_code == 200
     client.post("/api/research", json={"limit": 5, "use_live": False})
     opps = client.get("/api/opportunities", params={"refresh": True}).json()
-    cid = client.post("/api/content/generate",
-                      json={"opportunity_id": opps[0]["id"], "platform": "Blog"}).json()["content"]["id"]
+    gen = client.post("/api/content/generate",
+                      json={"opportunity_id": opps[0]["id"], "platform": "Blog"}).json()
+    assert gen["persisted"] is False
+    cid = client.post("/api/content/save", json={
+        "opportunity_id": opps[0]["id"], "platform": "Blog",
+        "title": gen["content"]["title"], "body": gen["content"]["body"],
+        "hook": gen["content"]["hook"], "brief": gen["brief"]}).json()["content"]["id"]
     assert client.put(f"/api/content/{cid}/status", json={"status": "published"}).json()["status"] == "published"
     assert client.put(f"/api/content/{cid}/status", json={"status": "nope"}).status_code == 400

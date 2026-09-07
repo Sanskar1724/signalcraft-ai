@@ -32,7 +32,8 @@ def test_grounding_toggle(tmp_db):
     opps = build_opportunities()
     full = generate_content(opps[0]["id"], platform="LinkedIn", grounded=True)
     assert full["brief"].supporting_evidence, "grounded brief must carry evidence"
-    bare = generate_content(opps[0]["id"], platform="LinkedIn", grounded=False)
+    bare = generate_content(opps[0]["id"], platform="LinkedIn", grounded=False,
+                            persist=False)
     assert bare["brief"].supporting_evidence == []
 
 
@@ -51,7 +52,9 @@ def test_style_reference_uses_real_top_post(tmp_db):
                                  impressions=2000, likes=200)
     ref = _style_reference(1, "LinkedIn")
     assert ref and "10.0%" in ref
-    res2 = generate_content(opps[0]["id"], platform="LinkedIn", style_match=True)
+    res2 = generate_content(opps[0]["id"], platform="LinkedIn", style_match=True,
+                            persist=False)
     assert res2["brief"].style_reference != ""
-    res3 = generate_content(opps[0]["id"], platform="LinkedIn", style_match=False)
+    res3 = generate_content(opps[0]["id"], platform="LinkedIn", style_match=False,
+                            persist=False)
     assert res3["brief"].style_reference == ""
