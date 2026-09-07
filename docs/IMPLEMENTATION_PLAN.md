@@ -1,6 +1,7 @@
-# SignalCraft AI — prompt1.txt Implementation Plan (§40)
+# SignalCraft AI — Implementation Plan
 
-Constitution: `prompt1.txt` (40 sections). Phase order per §28.
+Product loop: profile → research → trends → opportunities → agent → content → performance → learning.
+Build order below (foundation first, working system at every phase).
 
 | Phase | Spec | Implementation | Status |
 |---|---|---|---|

@@ -14,7 +14,7 @@ modules, business logic out of UI, providers behind interfaces, DB logic in
 `db.py`/repositories, validate external input (API schemas, `security`) and
 LLM output (`llm/schemas.py`), tests for scoring/ranking/analytics/agent,
 docs updated with architecture changes. Commits: `feat:`/`test:`/`chore:`.
-`prompt1.txt` is the constitution; keep a working system at every phase (§40).
+Keep a working system at every phase.
 
 ## Google OAuth setup
 
