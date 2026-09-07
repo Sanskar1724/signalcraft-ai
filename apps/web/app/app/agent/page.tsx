@@ -17,6 +17,25 @@ function stamp() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  understand_request: "Understanding request",
+  creator_context: "Loading creator context",
+  memory: "Checking memory",
+  "tool:research.search": "Researching current signals",
+  "tool:opportunities.list": "Ranking opportunities",
+  "tool:analytics.summary": "Analyzing performance",
+  "tool:analytics.insights": "Generating strategy",
+  "tool:content.generate": "Generating strategy",
+  opportunity_selected: "Opportunity selected",
+};
+
+function stageLabel(stage: string) {
+  if (STAGE_LABELS[stage]) return STAGE_LABELS[stage];
+  if (stage.startsWith("tool:")) return stage.slice(5).replace(/_/g, " ");
+  if (stage.startsWith("tool_error")) return "Recovered from a tool hiccup";
+  return stage.replace(/_/g, " ");
+}
+
 export default function AgentPage() {
   const [q, setQ] = useState("");
   const [log, setLog] = useState<{ me: string; at: string; bot: string; trace: { stage: string }[] }[]>([]);
@@ -58,14 +77,14 @@ export default function AgentPage() {
                 <div className="bubble">
                   <pre>{m.bot}</pre>
                   <div className="stamp">{m.at}</div>
-                  {m.trace.length > 0 && (
-                    <details className="trace">
-                      <summary>Execution trace ({m.trace.length} steps)</summary>
-                      {m.trace.map((s, j) => (
-                        <p key={j} className="muted">· {s.stage}</p>
-                      ))}
-                    </details>
-                  )}
+              {m.trace.length > 0 && (
+                <details className="trace">
+                  <summary>How I got this ({m.trace.length} steps)</summary>
+                  {m.trace.map((s, j) => (
+                    <p key={j} className="muted">✓ {stageLabel(s.stage)}</p>
+                  ))}
+                </details>
+              )}
                 </div>
               </div>
             ))}

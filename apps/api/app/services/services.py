@@ -183,6 +183,24 @@ class content:
         return _critique(body, platform=platform, topic=topic)
 
     @staticmethod
+    def improve_preview(body: str, platform: str = "LinkedIn") -> dict:
+        """Improve a preview WITHOUT storing (§13: improve before save)."""
+        from signalcraft.content.sanitize import scrub as _scrub
+        check = _validate(body, platform=platform, grounded=False)
+        if not check["ok"]:
+            raise ValueError(f"cannot improve invalid draft: {check['errors']}")
+        crit = _critique(body, platform=platform)
+        gateway = LLMGateway()
+        fix = gateway.generate(
+            render("content_revision", platform=platform,
+                   issues=crit["suggestion"], draft=body[:1500]),
+            task="generation", max_tokens=500).strip()
+        new_body = _scrub(fix[:2000])
+        final = _critique(new_body, platform=platform)
+        return {"body": new_body, "critique": final,
+                "previous_score": crit["overall"]}
+
+    @staticmethod
     def revise(content_id: int, user_id: int = 1) -> dict:
         from signalcraft.db import get_conn, new_uuid
         detail = get_content_detail(content_id, user_id)

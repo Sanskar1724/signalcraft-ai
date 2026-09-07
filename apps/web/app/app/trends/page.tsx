@@ -7,10 +7,11 @@ import { Card, Empty, Loading, ScoreBar, Tabs, useApi } from "../../../component
 export default function TrendingPage() {
   const [tab, setTab] = useState("for_you");
   const [query, setQuery] = useState("");
-  const { data, error, busy } = useApi(() => api.trends(12, tab), [tab]);
+  const { data, error, busy, reload } = useApi(() => api.trends(12, tab), [tab]);
 
   if (busy) return (<><h1>Trending For You</h1><Loading /></>);
-  if (error || !data) return (<><h1>Trending For You</h1><div className="error">API unavailable: {error}</div></>);
+  if (error || !data) return (<><h1>Trends</h1><div className="error">We couldn&apos;t load today&apos;s trends.
+    <p><button className="btn small" onClick={reload}>Retry</button></p></div></>);
 
   const rows = (data ?? [])
     .filter((t) => !query || t.topic.toLowerCase().includes(query.toLowerCase()));

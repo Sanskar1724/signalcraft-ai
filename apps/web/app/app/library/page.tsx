@@ -93,7 +93,10 @@ export default function LibraryPage() {
             <pre className="draft">{detail.body}</pre>
             <h2>Versions ({detail.versions.length})</h2>
             {detail.versions.map((v) => (
-              <p key={v.version} className="muted">v{v.version} — score {v.score} · {timeAgo(v.created_at)}</p>
+              <details className="trace" key={v.version}>
+                <summary>v{v.version} — score {v.score} · {timeAgo(v.created_at)}</summary>
+                <pre className="draft">{v.body}</pre>
+              </details>
             ))}
             <h2>Performance</h2>
             {detail.performance?.impressions ? (

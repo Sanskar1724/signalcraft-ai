@@ -24,6 +24,8 @@ export const api = {
     req<TrendSignal[]>(`/api/trends?top_n=${top_n}&sort=${sort}`),
   opportunities: (refresh = false) =>
     req<Opportunity[]>(`/api/opportunities${refresh ? "?refresh=true" : ""}`),
+  dismissOpportunity: (id: number) =>
+    req(`/api/opportunities/${id}/dismiss`, { method: "PUT" }),
   runResearch: (limit = 20) =>
     req<{ research: number; trends: number; opportunities: number }>("/api/research", {
       method: "POST",
@@ -43,6 +45,16 @@ export const api = {
     req<ReviseResult>("/api/content/revise", {
       method: "POST",
       body: JSON.stringify({ content_id }),
+    }),
+  improvePreview: (body: string, platform: string) =>
+    req<{ body: string; critique: Critique; previous_score: number }>("/api/content/improve-preview", {
+      method: "POST",
+      body: JSON.stringify({ body, platform }),
+    }),
+  save: (d: { opportunity_id?: number; platform: string; title: string; body: string; hook: string; cta?: string; brief?: Record<string, unknown> }) =>
+    req<{ content: ContentItem & { body: string } }>("/api/content/save", {
+      method: "POST",
+      body: JSON.stringify(d),
     }),
   library: () => req<ContentItem[]>("/api/content?limit=50"),
   detail: (id: number) => req<ContentDetail>(`/api/content/${id}`),
@@ -145,6 +157,8 @@ export interface ContentItem {
   id: number;
   platform: string;
   title: string;
+  hook: string;
+  cta: string;
   quality_score: number;
   status: string;
   created_at: string;
@@ -153,7 +167,7 @@ export interface ContentItem {
 export interface ContentDetail extends ContentItem {
   body: string;
   brief: Record<string, unknown>;
-  versions: { version: number; score: number; created_at: string }[];
+  versions: { version: number; body: string; score: number; created_at: string }[];
   performance: Record<string, number>;
 }
 
@@ -195,7 +209,7 @@ export interface AnalyticsSummary {
   weak_topics: { topic: string; posts: number; avg_engagement: number }[];
   by_platform: { platform: string; posts: number; avg_engagement: number }[];
   top_content: { id: number; title: string; performance_score: number }[];
-  rows: { id: number; title: string; platform: string; engagement_rate: number; performance_score: number }[];
+  rows: { id: number; title: string; platform: string; impressions: number; engagement_rate: number; performance_score: number }[];
 }
 
 export interface ChatReply {

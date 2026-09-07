@@ -22,6 +22,7 @@ const MONTHS = ["January", "February", "March", "April", "May", "June",
 
 export default function CalendarPage() {
   const cal = useApi(() => api.calendar());
+  const opps = useApi(() => api.opportunities());
   const now = new Date();
   const [ym, setYm] = useState<[number, number]>([now.getFullYear(), now.getMonth()]);
   const [platform, setPlatform] = useState("LinkedIn");
@@ -91,6 +92,15 @@ export default function CalendarPage() {
         ))}
       </div>
       {cal.data.items.length === 0 && <Empty text="Nothing scheduled yet." />}
+      <h2>Upcoming opportunities</h2>
+      <p className="sub">Top-ranked ideas worth scheduling next.</p>
+      {(opps.data ?? []).slice(0, 3).map((o, i) => (
+        <Card key={o.id}>
+          <p style={{ margin: 0 }}><b>{["Tomorrow", "This week", "Next"][i] ?? "Soon"}</b></p>
+          <p style={{ margin: "4px 0" }}>{o.topic} — score {o.score}</p>
+          <p className="muted" style={{ margin: 0 }}>Recommended for {o.platform}</p>
+        </Card>
+      ))}
     </>
   );
 }

@@ -11,7 +11,7 @@ from ..core.config import API_PREFIX
 from ..models.models import (ChatOut, ContentDetail, ContentItem, Opportunity,
                              Performance, ProfileOut, TrendSignal)
 from ..repositories.content import get_content_detail
-from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, LoginIn,
+from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, ImproveIn, LoginIn,
                                OnboardingStep, PasswordIn, PerformanceIn,
                                PreferencesUpdate, ProfileUpdate, ResearchRun,
                                ReviseIn, SaveIn, ScheduleIn, SignupIn, StatusIn)
@@ -178,6 +178,11 @@ async def post_critique(body: CritiqueIn) -> dict:
 @router.post("/content/revise")
 async def post_revise(body: ReviseIn, user_id: int = Depends(get_user_id)) -> dict:
     return content.revise(body.content_id, user_id)
+
+
+@router.post("/content/improve-preview")
+async def post_improve_preview(body: ImproveIn) -> dict:
+    return content.improve_preview(body.body, body.platform)
 
 
 @router.post("/content/save")

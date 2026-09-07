@@ -16,6 +16,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from signalcraft import analytics, calendar  # noqa: E402
 from signalcraft.auth import set_onboarding_status  # noqa: E402
 from signalcraft.content.generator import generate_content  # noqa: E402
+from signalcraft.llm import LLMGateway  # noqa: E402
+from signalcraft.llm.providers import MockProvider  # noqa: E402
 from signalcraft.db import get_conn, init_db  # noqa: E402
 from signalcraft.memory import learn_from_performance  # noqa: E402
 from signalcraft.opportunities import build_opportunities  # noqa: E402
@@ -49,12 +51,14 @@ def main(fresh: bool = False) -> None:
 
     seed_default_profile()
     sync_profile_taxonomy()
-    set_onboarding_status(1, "COMPLETED")    collect_and_store(limit=20, use_live=False)
-    opps = build_opportunities()
+    set_onboarding_status(1, "COMPLETED")
+    collect_and_store(limit=20, use_live=False)
+    opps = build_opportunities(gateway=LLMGateway(provider=MockProvider()))
     made = 0
+    mock = LLMGateway(provider=MockProvider())  # deterministic demo data, no quota
     for opp in opps[:7]:
         for plat in PLATFORMS:
-            res = generate_content(opp["id"], platform=plat)
+            res = generate_content(opp["id"], platform=plat, gateway=mock)
             cid = res["content"]["id"]
             imp = 500 + _h(opp["topic"], plat) % 4500
             eng = 2 + _h(plat, opp["topic"], "e") % 9  # 2-10%

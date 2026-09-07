@@ -75,6 +75,9 @@ def test_full_flow(client):
     crit = client.post("/api/content/critique",
                        json={"body": gen["content"]["body"], "platform": "LinkedIn"}).json()
     assert crit["overall"] >= 0
+    imp = client.post("/api/content/improve-preview",
+                      json={"body": gen["content"]["body"], "platform": "LinkedIn"}).json()
+    assert imp["body"] and imp["critique"]["overall"] >= 0
     rev = client.post("/api/content/revise", json={"content_id": cid}).json()
     assert rev["version"] == 2
     items = client.get("/api/content").json()
@@ -94,6 +97,8 @@ def test_full_flow(client):
     assert client.post("/api/agent/learn").json()["learned"]
     assert client.get("/api/debug/llm").json()["usage"]
     assert client.put(f"/api/opportunities/{opps[0]['id']}/dismiss").json()["ok"] is True
+    remaining = client.get("/api/opportunities").json()
+    assert all(o["id"] != opps[0]["id"] for o in remaining)
 
 
 def test_validation_and_404_envelope(client):

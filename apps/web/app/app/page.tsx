@@ -24,7 +24,8 @@ export default function OverviewPage() {
 
   if (busy) return (<><h1>Overview</h1><Loading /></>);
   if (error || !a.data || !o.data || !lib.data)
-    return (<><h1>Overview</h1><div className="error">API unavailable: {error} — is the backend running?</div></>);
+    return (<><h1>Overview</h1><div className="error">We couldn&apos;t load your briefing — your content is safe.
+      <p><button className="btn small" onClick={() => { a.reload(); o.reload(); ins.reload(); lib.reload(); }}>Retry</button></p></div></>);
 
   const top = o.data.slice(0, 3);
   const trend = (a.data.rows ?? []).map((r) => r.engagement_rate);
@@ -72,6 +73,20 @@ export default function OverviewPage() {
         </Card>
       </div>
 
+      <h2>Today&apos;s content opportunity</h2>
+      {top.length > 0 && (
+        <Card glow>
+          <p className="lbl">Hero intelligence</p>
+          <h3>{top[0].topic} — {top[0].score}/100</h3>
+          <div className="fact"><p className="lbl">Why now</p><p>{top[0].why_now}</p></div>
+          <div className="interp"><p className="lbl">Why you</p><p>{top[0].why_you}</p></div>
+          <div className="row">
+            <Link href={`/app/create?opp=${top[0].id}`} className="btn small" style={{ textDecoration: "none" }}>Create Content</Link>
+            <Link href="/app/opportunities" className="btn ghost small" style={{ textDecoration: "none" }}>All opportunities</Link>
+          </div>
+        </Card>
+      )}
+
       <h2>Recent recommendations</h2>
       {top.length === 0 && <Empty text="No opportunities yet — hit Refresh research." />}
       {top.map((item) => (
@@ -90,17 +105,24 @@ export default function OverviewPage() {
       <p><Link href="/app/insights" style={{ color: "var(--accent2)" }}>All insights →</Link></p>
 
       <h2>Recent content</h2>
-      {lib.data.slice(0, 5).map((c) => (
-        <Card key={c.id}>
-          <div className="row" style={{ alignItems: "center" }}>
-            <Pill kind={c.platform}>{c.platform}</Pill>
-            <b>{c.title.slice(0, 80)}</b>
-            <span style={{ flex: 1 }} />
-            <Quality score={c.quality_score} />
-          </div>
-          <p className="muted">{c.status} · {timeAgo(c.created_at)}</p>
-        </Card>
-      ))}
+      {lib.data.slice(0, 5).map((c) => {
+        const rows = a.data?.rows ?? [];
+        const m = rows.find((r) => r.id === c.id);
+        return (
+          <Card key={c.id}>
+            <div className="row" style={{ alignItems: "center" }}>
+              <Pill kind={c.platform}>{c.platform}</Pill>
+              <b>{c.title.slice(0, 80)}</b>
+              <span style={{ flex: 1 }} />
+              <Quality score={c.quality_score} />
+            </div>
+            <p className="muted">
+              {c.status} · {timeAgo(c.created_at)}
+              {m ? ` · ${m.impressions} impressions · ${m.engagement_rate}% engagement` : " · no metrics yet"}
+            </p>
+          </Card>
+        );
+      })}
       {!lib.data.length && <Empty text="No content yet — generate your first draft." />}
       <p><Link href="/app/library" style={{ color: "var(--accent2)" }}>Full library →</Link></p>
       <p className="stamp">Updated {timeAgo(new Date().toISOString())} · demo data</p>

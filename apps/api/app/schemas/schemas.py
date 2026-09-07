@@ -49,6 +49,11 @@ class ReviseIn(BaseModel):
     content_id: int
 
 
+class ImproveIn(BaseModel):
+    body: str = Field(min_length=1, max_length=6000)
+    platform: str = "LinkedIn"
+
+
 class SaveIn(BaseModel):
     opportunity_id: int | None = None
     platform: str = "LinkedIn"

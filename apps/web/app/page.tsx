@@ -74,8 +74,25 @@ function MetricBand() {
   );
 }
 
-function LiveTicker() {
-  const [topics, setTopics] = useState<string[]>([]);
+function StatusStrip() {
+  const [state, setState] = React.useState<"checking" | "live" | "down">("checking");
+  React.useEffect(() => {
+    api.health().then(() => setState("live")).catch(() => setState("down"));
+  }, []);
+  return (
+    <div className="card">
+      <div className="row" style={{ alignItems: "center" }}>
+        <span className={"livedot" + (state === "live" ? " on" : state === "down" ? " off" : "")} />
+        <b>API {state === "checking" ? "checking…" : state}</b>
+        <span className="muted">FastAPI · versioned REST · request IDs · typed errors</span>
+        <span style={{ flex: 1 }} />
+        <a href="http://localhost:8001/docs" target="_blank" rel="noreferrer" className="btn ghost small">API docs</a>
+      </div>
+    </div>
+  );
+}
+
+function LiveTicker() {  const [topics, setTopics] = useState<string[]>([]);
   useEffect(() => {
     api.trends(8).then((t) => setTopics(t.map((x) => x.topic))).catch(() => setTopics([]));
   }, []);
@@ -191,6 +208,18 @@ export default function Landing() {
           <div className="a">Three opportunities fit your audience. Strongest: AI agents in data engineering (91/100).</div>
           <div className="q"><b>You:</b> Turn it into an X thread.</div>
           <div className="a">Done — check Create.</div>
+        </div>
+      </Section>
+
+      <Section id="status" kicker="System status" title="Live, observable, honest.">
+        <StatusStrip />
+      </Section>
+
+      <Section id="start" kicker="How to use it" title="From signup to briefing in minutes.">
+        <div className="grid3">
+          <div className="card"><h3>1 · Sign up</h3><p className="muted">Email or Google. No credit card.</p></div>
+          <div className="card"><h3>2 · 3-step setup</h3><p className="muted">You, audience, voice. Saved as you go.</p></div>
+          <div className="card"><h3>3 · Get briefed</h3><p className="muted">Trends, opportunities, drafts, learning.</p></div>
         </div>
       </Section>
 

@@ -113,12 +113,14 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
         conn.close()
 
 
-def list_opportunities(user_id: int = 1, limit: int = 20, offset: int = 0) -> list[dict]:
+def list_opportunities(user_id: int = 1, limit: int = 20, offset: int = 0,
+                       include_dismissed: bool = False) -> list[dict]:
     conn = get_conn()
     try:
+        filt = "" if include_dismissed else "AND status!='dismissed'"
         rows = conn.execute(
-            "SELECT * FROM content_opportunities WHERE user_id=? ORDER BY score DESC"
-            " LIMIT ? OFFSET ?",
+            "SELECT * FROM content_opportunities WHERE user_id=? " + filt +
+            " ORDER BY score DESC LIMIT ? OFFSET ?",
             (user_id, limit, offset)).fetchall()
         return [dict(r) for r in rows]
     finally:
