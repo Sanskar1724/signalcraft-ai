@@ -107,9 +107,18 @@ def build_brief(profile, opp: dict, evidence: list[str],
     )
 
 
+PLATFORM_TEMPLATES = {
+    "LinkedIn": "linkedin_generation",
+    "X": "x_generation",
+    "Blog": "blog_generation",
+    "Newsletter": "newsletter_generation",
+}
+
+
 def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str,
-                   max_tokens: int = 450) -> str:
-    prompt = render("content_strategy", brief=brief.model_dump_json(), tone=tone or "clear")
+                   max_tokens: int = 450, platform: str = "LinkedIn") -> str:
+    tpl = PLATFORM_TEMPLATES.get(platform, "content_strategy")
+    prompt = render(tpl, brief=brief.model_dump_json(), tone=tone or "clear")
     core = gateway.generate(prompt, task="generation", max_tokens=max_tokens).strip()
     # Strip mock prefix so UI reads clean; keep provenance in version row instead.
     if core.startswith("[Mock draft"):
@@ -154,8 +163,21 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     trace.add("grounding", {"grounded": grounded, "style_match": bool(style_ref),
                             "evidence_n": len(evidence)})
 
-    core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length])
+    core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length], platform)
     core = scrub(core)  # nothing internal survives to the draft (§12)
+    if len(core) < 40:
+        # One bounded regeneration with an explicit no-preamble order (§12).
+        retry = scrub(gateway.generate(
+            "Your previous output was empty. Write ONLY the finished piece, "
+            "no preamble, no analysis: " + render(
+                PLATFORM_TEMPLATES.get(platform, "content_strategy"),
+                brief=brief.model_dump_json(), tone=brief.tone or "clear"),
+            task="generation", max_tokens=LENGTH_TOKENS[length]).strip())
+        if len(retry) >= 40:
+            core = retry
+            trace.add("regenerated", {"chars": len(core)})
+    if len(core) < 40:
+        raise ValueError("generation produced no usable content")
     trace.add("strategy", core[:200])
 
     angle = scrub(opp.get("angle", ""))

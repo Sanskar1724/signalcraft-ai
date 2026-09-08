@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from .config import settings
-from .content.sanitize import scrub
+from .content.sanitize import leak_found, scrub
 from .db import get_conn, new_uuid
 from .llm import LLMGateway
 from .memory import get_memory_boost
@@ -27,6 +27,27 @@ def _platform(score: float) -> str:
         if score >= cutoff:
             return name
     return "Blog"
+
+
+def _clean_angle(gateway: LLMGateway, profile, topic: str) -> str:
+    """One clean sentence, never reasoning. Deterministic fallback on any doubt."""
+    import re as _re
+    fallback = (f"How {topic} changes day-to-day work "
+                f"for {profile.audience or 'your audience'}.")
+    try:
+        raw = gateway.generate(
+            f"Topic: {topic}. Reply with EXACTLY ONE sentence (max 25 words): "
+            f"a sharp content angle. No preamble, no bullets, no quotes.",
+            task="strategy", max_tokens=80).strip()
+    except Exception:
+        return fallback
+    text = scrub(raw)
+    # Keep the first real sentence only.
+    sentences = [s.strip().strip("\"'“”") for s in _re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    first = sentences[0] if sentences else ""
+    if len(first) < 12 or leak_found(first):
+        return fallback
+    return first[:200]
 
 
 def build_opportunities(user_id: int = 1, top_n: int = 8,
@@ -49,24 +70,19 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
             0.30 + 0.20 * user_rel + 0.15 * t["audience_fit"]
             + 0.15 * t["trend_score"] / 100.0 + 0.10 * t["freshness"]
             + 0.10 * t["novelty"])), 2)
-        why_now = (f"'{t['topic']}' scores {t['trend_score']}/100 "
-                   f"(growth {t['growth']}, freshness {t['freshness']}, "
-                   f"momentum {t['source_momentum']}, competition {t['competition']}). "
-                   f"Top evidence: {'; '.join(t['evidence_titles'][:2])}")
-        why_you = (f"Matches your niche '{profile.niche or '—'}' "
-                   f"(user relevance {user_rel}, audience fit {t['audience_fit']}). "
-                   f"Audience: {profile.audience or '—'}. "
-                   f"Goals: {profile.goals or '—'}.")
-        angle_prompt = (
-            f"Creator niche: {profile.niche}. Expertise: {profile.expertise}. "
-            f"Tone: {profile.tone}. Topic: {t['topic']}. "
-            f"Suggest one sharp content angle in one sentence."
-        )
-        try:
-            angle = scrub(gateway.generate(angle_prompt, task="strategy", max_tokens=120).strip())
-        except Exception:
-            angle = (f"How {t['topic']} changes day-to-day work "
-                     f"for {profile.audience or 'your audience'}.")
+        comp_word = "low" if t["competition"] < 0.34 else ("medium" if t["competition"] < 0.67 else "high")
+        momentum_word = "rising fast" if t["growth"] >= 0.6 else ("steady" if t["growth"] >= 0.3 else "early")
+        ev = t["evidence_titles"][:2]
+        why_now = (f"'{t['topic']}' is {momentum_word}: {len(t['evidence'])} recent "
+                   f"{'source' if len(t['evidence']) == 1 else 'sources'} mention it"
+                   + (f", including “{ev[0]}”" if ev else "")
+                   + (f" and “{ev[1]}”" if len(ev) > 1 else "")
+                   + f". Competition looks {comp_word}.")
+        why_you = (f"Fits your niche in {profile.niche or 'your field'} for "
+                   f"{profile.audience or 'your audience'}"
+                   + (f" and your goal of {profile.goals}" if profile.goals else "")
+                   + ".")
+        angle = _clean_angle(gateway, profile, t["topic"])
         opps.append({
             "topic": t["topic"], "trend_score": t["trend_score"],
             "user_relevance": user_rel, "audience_fit": t["audience_fit"],
@@ -115,6 +131,7 @@ def build_opportunities(user_id: int = 1, top_n: int = 8,
 
 def list_opportunities(user_id: int = 1, limit: int = 20, offset: int = 0,
                        include_dismissed: bool = False) -> list[dict]:
+    import json as _json
     conn = get_conn()
     try:
         filt = "" if include_dismissed else "AND status!='dismissed'"
@@ -122,6 +139,26 @@ def list_opportunities(user_id: int = 1, limit: int = 20, offset: int = 0,
             "SELECT * FROM content_opportunities WHERE user_id=? " + filt +
             " ORDER BY score DESC LIMIT ? OFFSET ?",
             (user_id, limit, offset)).fetchall()
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        # Attach human-readable evidence titles (provenance chain stays typed).
+        ids: set[int] = set()
+        refs: list[list[int]] = []
+        for o in out:
+            try:
+                rr = _json.loads(o.get("research_refs") or "[]")
+            except Exception:
+                rr = []
+            cur = [int(x) for x in rr if isinstance(x, int)]
+            refs.append(cur)
+            ids.update(cur)
+        titles: dict[int, str] = {}
+        if ids:
+            for r in conn.execute(
+                    f"SELECT id, title FROM research_documents WHERE id IN ({','.join('?' * len(ids))})",
+                    tuple(ids)).fetchall():
+                titles[r["id"]] = r["title"]
+        for o, rr in zip(out, refs, strict=True):
+            o["evidence_titles"] = [titles[i] for i in rr if i in titles]
+        return out
     finally:
         conn.close()

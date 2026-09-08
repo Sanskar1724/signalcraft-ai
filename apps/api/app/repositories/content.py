@@ -32,6 +32,24 @@ def get_content_detail(content_id: int, user_id: int = 1) -> dict:
             out["brief"] = json.loads(versions_full["brief"]) if versions_full else {}
         except Exception:
             out["brief"] = {}
+        # Provenance chain: Content → Opportunity → Research (§23, §30).
+        out["opportunity"] = None
+        out["research"] = []
+        if out.get("opportunity_id"):
+            opp = conn.execute("SELECT * FROM content_opportunities WHERE id=?",
+                               (out["opportunity_id"],)).fetchone()
+            if opp:
+                out["opportunity"] = dict(opp)
+                try:
+                    refs = json.loads(opp["research_refs"] or "[]")
+                except Exception:
+                    refs = []
+                ids = [int(x) for x in refs if isinstance(x, int)]
+                if ids:
+                    out["research"] = [dict(r) for r in conn.execute(
+                        "SELECT id, source, source_url, title, summary, published_at"
+                        f" FROM research_documents WHERE id IN ({','.join('?' * len(ids))})",
+                        tuple(ids)).fetchall()]
         return out
     finally:
         conn.close()

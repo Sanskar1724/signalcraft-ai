@@ -41,19 +41,45 @@ TEMPLATES: dict[str, dict] = {
                      "Tone: {tone}."),
     },
     "linkedin_generation": {
-        "version": 1,
-        "template": ("Turn this core into a LinkedIn post (Hook -> Context -> "
-                     "Insight -> Explanation -> Takeaway -> CTA).\nCore: {core}"),
+        "version": 2,
+        "template": ("You are ghostwriting a LinkedIn post. Brief (JSON): {brief}\n\n"
+                     "Write ONLY the finished post, nothing else — no preamble, no "
+                     "analysis, no labels, no quoted instructions:\n"
+                     "Hook (one sharp line) -> Context (2-3 lines) -> Insight -> "
+                     "Short explanation -> Takeaway -> CTA question.\n"
+                     "Use ONLY facts from supporting_evidence. Match style_reference voice. "
+                     "Tone: {tone}."),
     },
     "x_generation": {
-        "version": 1,
-        "template": ("Turn this core into an X thread (strong opening -> concise "
-                     "insight -> supporting points, numbered 1/N).\nCore: {core}"),
+        "version": 2,
+        "template": ("You are ghostwriting an X thread. Brief (JSON): {brief}\n\n"
+                     "Write ONLY the finished thread, nothing else — no preamble, no "
+                     "analysis, no labels:\n"
+                     "Numbered posts (1/N format). Post 1: strong opening under 240 "
+                     "characters. Then concise insight plus supporting points. Final "
+                     "post: one takeaway.\n"
+                     "Use ONLY facts from supporting_evidence. Match style_reference voice. "
+                     "Tone: {tone}."),
     },
     "blog_generation": {
+        "version": 2,
+        "template": ("You are ghostwriting a blog post. Brief (JSON): {brief}\n\n"
+                     "Write ONLY the finished article, nothing else — no preamble, no "
+                     "analysis, no labels:\n"
+                     "Markdown Title -> Introduction -> sections with ## headers -> "
+                     "Evidence -> Examples -> Conclusion.\n"
+                     "Use ONLY facts from supporting_evidence. Match style_reference voice. "
+                     "Tone: {tone}."),
+    },
+    "newsletter_generation": {
         "version": 1,
-        "template": ("Turn this core into a blog outline+intro (Title -> Introduction "
-                     "-> Sections -> Evidence -> Examples -> Conclusion).\nCore: {core}"),
+        "template": ("You are ghostwriting a newsletter issue. Brief (JSON): {brief}\n\n"
+                     "Write ONLY the finished issue, nothing else — no preamble, no "
+                     "analysis, no labels:\n"
+                     "Subject line first, then greeting, one insight with an example, "
+                     "one thing to try, and a reply-style CTA.\n"
+                     "Use ONLY facts from supporting_evidence. Match style_reference voice. "
+                     "Tone: {tone}."),
     },
     "content_critic": {
         "version": 1,

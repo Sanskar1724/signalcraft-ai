@@ -23,12 +23,24 @@ from datetime import UTC, datetime
 from .config import settings
 from .db import get_conn, new_uuid
 from .profiles import get_profile
-from .research.normalize import BANNED_URL_TOKENS
+from .research.normalize import BANNED_URL_TOKENS, looks_like_url_junk
 
 __all__ = ["detect_trends", "freshness_of", "tokenize"]
 
 STOP = {"the", "and", "for", "with", "from", "that", "this", "into", "using",
         "how", "are", "was", "were", "have", "has", "will", "over", "more"}
+
+# Generic verbs/modals: bigrams built on these are noise, never topics
+# ("agents can", "humans need", ...). Real topics name things, not actions.
+GENERIC_VERBS = frozenset({
+    "can", "could", "may", "might", "must", "shall", "should", "will", "would",
+    "is", "are", "was", "were", "be", "been", "being", "do", "does", "did",
+    "done", "need", "needs", "want", "wants", "like", "likes", "get", "gets",
+    "got", "make", "makes", "made", "take", "takes", "took", "come", "comes",
+    "see", "sees", "know", "knows", "think", "thinks", "use", "uses", "used",
+    "put", "set", "let", "keep", "keeps", "show", "shows", "move", "moves",
+    "say", "says", "said", "go", "goes", "try", "tried", "help", "helps",
+})
 
 
 def tokenize(s: str) -> list[str]:
@@ -76,7 +88,12 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
         toks = tokenize(f"{r['title']} {r['summary']}")
         grams = [" ".join(toks[i:i + 2]) for i in range(len(toks) - 1)]
         for g in set(grams):
+            parts = g.split()
             if any(a in g for a in avoid if a):
+                continue
+            if any(p in GENERIC_VERBS for p in parts):
+                continue
+            if looks_like_url_junk(g):
                 continue
             counter[g] += 1
             evidence.setdefault(g, []).append(r["id"])
@@ -88,8 +105,12 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
         growth = min(1.0, mentions / 5.0)
         tset = set(topic.split())
         relevance = len(tset & niche_keys) / max(1, len(tset)) if niche_keys else 0.3
-        if any(pt.lower() in topic or topic in pt.lower() for pt in profile.topics):
+        explicit_match = any(pt.lower() in topic or topic in pt.lower() for pt in profile.topics)
+        if explicit_match:
             relevance = min(1.0, relevance + 0.2)
+        if relevance < 0.15 and not explicit_match:
+            # No connection to this creator: a generic bigram, not THEIR trend.
+            continue
         sources = {s.get("source", "") for s in sup}
         momentum = min(1.0, len(sources) / 3.0)
         audience_fit = len(tset & aud_keys) / max(1, len(tset)) if aud_keys else 0.3

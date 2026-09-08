@@ -141,11 +141,103 @@ def test_agent_handles_corruption_and_emptiness(tmp_db, monkeypatch):
     out3 = run("What should I post today?")
     assert "limitation" in out3["answer"].lower() or "Observed fact" in out3["answer"]
 
-
 def test_analytics_missing_data(tmp_db):
     s = analytics.summary()
     assert s["posts"] == 0 and s["avg_engagement"] == 0.0
     assert analytics.insights() and "first piece" in analytics.insights()[0].lower()
+
+
+def test_bad_topics_rejected(tmp_db):
+    from signalcraft.db import get_conn
+    from signalcraft.profiles import seed_default_profile
+    from signalcraft.trends import detect_trends
+    seed_default_profile()
+    conn = get_conn()
+    try:
+        _seed_research(conn, 1, [
+            ("Agents can use tools daily", "AI agents can use tools daily for ETL work."),
+            ("Windows WSL setup notes", "Windows WSL setup notes for developers."),
+            ("AI agents reshape data pipelines", "AI agents and PySpark ETL."),
+        ])
+    finally:
+        conn.close()
+    topics = [t["topic"] for t in detect_trends()]
+    joined = " ".join(topics)
+    for bad in ("agents can", "windows wsl"):
+        assert bad not in joined, f"junk topic surfaced: {bad}"
+    assert any("agents" in t for t in topics)
+
+
+def test_angle_is_one_clean_sentence(tmp_db):
+    from signalcraft.opportunities import build_opportunities, list_opportunities
+    from signalcraft.profiles import seed_default_profile
+    from signalcraft.research import collect_and_store
+    seed_default_profile()
+    collect_and_store(limit=5, use_live=False)
+    build_opportunities()
+    for o in list_opportunities():
+        assert o["angle"] and len(o["angle"]) <= 200
+        assert not leak_found(o["angle"]), o["angle"]
+        assert "freshness" not in o["why_now"] and "growth" not in o["why_now"]
+        assert o["evidence_titles"], "opportunity must carry evidence"
+
+
+def test_regenerate_on_empty_then_fail(tmp_db):
+    from signalcraft.content.generator import generate_content
+    from signalcraft.llm import LLMGateway
+    from signalcraft.llm.providers import BaseProvider, MockProvider
+    from signalcraft.opportunities import build_opportunities
+    from signalcraft.profiles import seed_default_profile
+    from signalcraft.research import collect_and_store
+    seed_default_profile()
+    collect_and_store(limit=5, use_live=False)
+    opps = build_opportunities()
+    from signalcraft.llm.providers import LLMResult
+
+    class Flaky(BaseProvider):
+        name = "flaky"
+
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, task="generation", max_tokens=800):
+            self.calls += 1
+            if self.calls == 1:
+                return LLMResult("", "flaky", "f", 1, 10, 0)
+            return MockProvider().generate(prompt, task, max_tokens)
+
+    res = generate_content(opps[0]["id"], platform="LinkedIn",
+                           gateway=LLMGateway(provider=Flaky()), persist=False)
+    assert len(res["content"]["body"]) > 100
+
+    class Empty(BaseProvider):
+        name = "empty"
+
+        def generate(self, prompt, task="generation", max_tokens=800):
+            return LLMResult("   ", "empty", "e", 1, 10, 0)
+
+    import pytest as _pt
+    with _pt.raises(ValueError, match="no usable content"):
+        generate_content(opps[0]["id"], platform="LinkedIn",
+                         gateway=LLMGateway(provider=Empty()), persist=False)
+
+
+def test_create_matrix_all_platforms(tmp_db):
+    from signalcraft.content.generator import generate_content
+    from signalcraft.opportunities import build_opportunities
+    from signalcraft.profiles import seed_default_profile
+    from signalcraft.research import collect_and_store
+    seed_default_profile()
+    collect_and_store(limit=5, use_live=False)
+    opps = build_opportunities()
+    for plat in ("LinkedIn", "X", "Blog", "Newsletter"):
+        res = generate_content(opps[0]["id"], platform=plat, persist=False)
+        body = res["content"]["body"]
+        assert len(body) > 100, plat
+        assert not leak_found(body), (plat, body[:200])
+    x = generate_content(opps[0]["id"], platform="X", persist=False)["content"]["body"]
+    li = generate_content(opps[0]["id"], platform="LinkedIn", persist=False)["content"]["body"]
+    assert x != li, "platforms must not be mechanical copies"
 
 
 def test_arjun_scenario_end_to_end(tmp_db):

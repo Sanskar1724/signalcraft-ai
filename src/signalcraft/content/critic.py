@@ -79,5 +79,9 @@ def critique(body: str, platform: str = "LinkedIn", topic: str = "",
         issues.append("end with a clear CTA or question")
 
     overall = round(sum(scores.values()) / len(scores), 1)
+    if n < 20:
+        # Degenerate input: never present a confident score for thin content.
+        overall = min(overall, 3.0)
+        issues.insert(0, "content too thin to score reliably")
     return {"scores": scores, "overall": overall, "issues": issues,
             "suggestion": "; ".join(issues[:3]) or "Ready to publish."}
