@@ -60,7 +60,7 @@ export default function OnboardingPage() {
     name: "", role: "", bio: "", location: "", niche: "", secondary_topics: [],
     expertise_level: "", audience: "", audience_segments: [], goals: [],
     writing_style: "", tone: "", style_notes: "", topics: [], avoid_topics: [],
-    formats: [], frequency: "", platforms: ["LinkedIn", "X", "Blog"],
+    formats: [], frequency: "", platforms: [],
   });
   const set = (k: string, v: string | string[]) => setF({ ...f, [k]: v });
   const [restored, setRestored] = useState(false);
@@ -149,6 +149,10 @@ export default function OnboardingPage() {
   }
 
   async function finish() {
+    if (!(f.platforms as string[]).length) {
+      setError("Pick at least one platform to continue.");
+      return;
+    }
     setBusy(true);
     setBuilding(true);
     setError("");
@@ -253,8 +257,8 @@ export default function OnboardingPage() {
               <div className="grid2" style={{ marginTop: 10 }}>
                 <label className="field">Tone
                   <input value={f.tone as string} onChange={(e) => set("tone", e.target.value)} placeholder="Technical + simple" /></label>
-                <label className="field">Posting frequency
-                  <input value={f.frequency as string} onChange={(e) => set("frequency", e.target.value)} placeholder="3–5 / week" /></label>
+              <p className="lbl">Posting frequency</p>
+              <Chips options={FREQS} value={[f.frequency as string]} onChange={([v]) => set("frequency", v ?? "")} multi={false} />
               </div>
               <label className="field" style={{ marginTop: 10 }}>Describe your style
                 <input value={f.style_notes as string} onChange={(e) => set("style_notes", e.target.value)}

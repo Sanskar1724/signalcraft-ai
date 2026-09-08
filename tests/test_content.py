@@ -58,3 +58,42 @@ def test_style_reference_uses_real_top_post(tmp_db):
     res3 = generate_content(opps[0]["id"], platform="LinkedIn", style_match=False,
                             persist=False)
     assert res3["brief"].style_reference == ""
+
+
+def test_no_json_keys_or_labels_in_outputs(tmp_db):
+    from signalcraft.content.generator import brief_to_prose, build_brief, generate_content
+    from signalcraft.content.sanitize import leak_found
+    from signalcraft.llm.prompts import render
+    from signalcraft.opportunities import build_opportunities
+    from signalcraft.profiles import get_profile, seed_default_profile
+    from signalcraft.research import collect_and_store
+    seed_default_profile()
+    collect_and_store(limit=5, use_live=False)
+    opps = build_opportunities()
+    profile = get_profile()
+    brief = build_brief(profile, opps[0], ["fact one", "fact two"], {}, "voice ref")
+    prose = brief_to_prose(brief, profile)
+    for token in ("supporting_evidence", "style_reference", "target_audience", "core_message"):
+        assert token not in prose
+        assert token not in render("linkedin_generation", brief_prose=prose, tone="x")
+    assert profile.niche.split("+")[0].strip().lower() in prose.lower()
+    for plat in ("LinkedIn", "X", "Blog", "Newsletter"):
+        body = generate_content(opps[0]["id"], platform=plat, persist=False)["content"]["body"]
+        assert "Angle:" not in body and "Context:" not in body
+        assert not leak_found(body)
+
+
+def test_critic_technical_value_and_provider(tmp_db):
+    from signalcraft.content.critic import critique
+    from signalcraft.content.generator import generate_content
+    from signalcraft.opportunities import build_opportunities
+    from signalcraft.profiles import seed_default_profile
+    from signalcraft.research import collect_and_store
+    seed_default_profile()
+    collect_and_store(limit=5, use_live=False)
+    opps = build_opportunities()
+    res = generate_content(opps[0]["id"], platform="Blog", persist=False)
+    assert "technical_value" in res["critique"]["scores"]
+    assert res["provider"] == "mock"
+    thin = critique("Too short.", platform="Blog")
+    assert thin["overall"] <= 3.0

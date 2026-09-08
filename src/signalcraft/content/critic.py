@@ -79,6 +79,11 @@ def critique(body: str, platform: str = "LinkedIn", topic: str = "",
         issues.append("end with a clear CTA or question")
 
     overall = round(sum(scores.values()) / len(scores), 1)
+    # Technical value: composite of evidence, originality and relevance —
+    # computed deterministically from the same rubric, never invented.
+    scores["technical_value"] = round(
+        (scores["evidence"] + scores["originality"] + scores["relevance"]) / 3, 1)
+    overall = round(sum(scores.values()) / len(scores), 1)
     if n < 20:
         # Degenerate input: never present a confident score for thin content.
         overall = min(overall, 3.0)

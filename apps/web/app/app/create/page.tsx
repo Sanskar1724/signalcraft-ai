@@ -30,6 +30,7 @@ type Draft = {
   title: string;
   body: string;
   savedId: number | null;
+  provider?: string;
 };
 
 export default function CreatePage() {
@@ -74,6 +75,7 @@ function CreateInner() {
         out[p] = {
           brief: r.brief, critique: r.critique, hook: r.content.hook,
           title: r.content.title, body: r.content.body, savedId: null,
+          provider: r.provider,
         };
         setDrafts({ ...out });
       }
@@ -262,6 +264,7 @@ function DraftCard({ plat, d, busy, format, onBody, onImprove, onSave }: {
       <div className="row" style={{ alignItems: "center" }}>
         <Pill kind={plat}>{plat}</Pill>
         <Quality score={d.critique.overall} />
+        {d.provider === "mock" && <span className="pill warn">Demo draft — connect an LLM key for live generation</span>}
         {d.savedId ? <span className="pill good">Saved #{d.savedId}</span> : <span className="pill warn">Preview — not saved</span>}
         <span style={{ flex: 1 }} />
         <button className="btn ghost small" onClick={onImprove} disabled={busy}>Improve</button>

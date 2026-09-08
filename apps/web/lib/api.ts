@@ -189,6 +189,8 @@ export interface GenerateResult {
   content: ContentItem & { body: string };
   critique: Critique;
   brief: Record<string, unknown>;
+  persisted?: boolean;
+  provider?: string;
 }
 
 export interface Critique {

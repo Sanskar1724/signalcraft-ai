@@ -115,10 +115,40 @@ PLATFORM_TEMPLATES = {
 }
 
 
+def brief_to_prose(brief: ContentBrief, profile) -> str:
+    """Render the brief as natural instructions — no JSON keys, so there is
+    nothing structural for a model to echo back into the content."""
+    lines = [
+        f"Write for this creator: niche {profile.niche or 'general'}, "
+        f"expertise {profile.expertise or 'general'}.",
+        f"Audience: {brief.target_audience or profile.audience or 'general readers'}.",
+        f"Voice: {brief.tone or 'clear and direct'}"
+        + (f"; style notes: {profile.style_notes}" if profile.style_notes else "")
+        + ".",
+        f"Topic: {brief.topic}. Angle: {brief.angle or brief.core_message}.",
+    ]
+    if brief.supporting_evidence:
+        lines.append("Facts you may use (use ONLY these, never invent statistics, "
+                     "quotes, URLs or events):")
+        lines.extend(f"- {e[:280]}" for e in brief.supporting_evidence[:3])
+    else:
+        lines.append("No external evidence was provided: write from the angle using "
+                     "general reasoning, and do not invent specific facts.")
+    if brief.style_reference:
+        lines.append(f"Match this voice from the creator's own best post: {brief.style_reference[:400]}")
+    avoid = list(dict.fromkeys([*(brief.things_to_avoid or []), *[
+        "generic AI hype", "clickbait", "exaggerated claims"]]))
+    lines.append(f"Avoid: {', '.join(avoid)}.")
+    lines.append(f"Close with: {brief.cta}" if brief.cta else "End without a CTA.")
+    return "\n".join(lines)
+
+
 def _strategy_text(gateway: LLMGateway, brief: ContentBrief, tone: str,
-                   max_tokens: int = 450, platform: str = "LinkedIn") -> str:
+                   max_tokens: int = 450, platform: str = "LinkedIn",
+                   profile=None) -> str:
     tpl = PLATFORM_TEMPLATES.get(platform, "content_strategy")
-    prompt = render(tpl, brief=brief.model_dump_json(), tone=tone or "clear")
+    prose = brief_to_prose(brief, profile) if profile is not None else brief.model_dump_json()
+    prompt = render(tpl, brief_prose=prose, brief=brief.model_dump_json(), tone=tone or "clear")
     core = gateway.generate(prompt, task="generation", max_tokens=max_tokens).strip()
     # Strip mock prefix so UI reads clean; keep provenance in version row instead.
     if core.startswith("[Mock draft"):
@@ -163,7 +193,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     trace.add("grounding", {"grounded": grounded, "style_match": bool(style_ref),
                             "evidence_n": len(evidence)})
 
-    core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length], platform)
+    core = _strategy_text(gateway, brief, brief.tone, LENGTH_TOKENS[length],
+                          platform, profile)
     core = scrub(core)  # nothing internal survives to the draft (§12)
     if len(core) < 40:
         # One bounded regeneration with an explicit no-preamble order (§12).
@@ -171,7 +202,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
             "Your previous output was empty. Write ONLY the finished piece, "
             "no preamble, no analysis: " + render(
                 PLATFORM_TEMPLATES.get(platform, "content_strategy"),
-                brief=brief.model_dump_json(), tone=brief.tone or "clear"),
+                brief_prose=brief_to_prose(brief, profile),
+                tone=brief.tone or "clear"),
             task="generation", max_tokens=LENGTH_TOKENS[length]).strip())
         if len(retry) >= 40:
             core = retry
@@ -186,6 +218,27 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     hook, body, cta = fmt(opp["topic"], angle, core, profile.tone)
     body = scrub(body[:MAX_BODY])
     trace.add("draft", {"hook": hook, "chars": len(body)})
+
+    # Validate BEFORE critique: never score invalid output (§12 order).
+    validation = validate(body, platform=platform, topic=opp["topic"], grounded=grounded)
+    trace.add("validate", validation)
+    if not validation["ok"]:
+        strict = scrub(gateway.generate(
+            "Your previous output was rejected for: "
+            + "; ".join(validation["errors"][:3])
+            + ". Regenerate cleanly now. Write ONLY the finished piece, no "
+            "preamble, no analysis, no labels: " + render(
+                PLATFORM_TEMPLATES.get(platform, "content_strategy"),
+                brief_prose=brief_to_prose(brief, profile),
+                tone=brief.tone or "clear"),
+            task="generation", max_tokens=LENGTH_TOKENS[length]).strip())
+        hook, body, cta = fmt(opp["topic"], angle, strict, profile.tone)
+        body = scrub(body[:MAX_BODY])
+        validation = validate(body, platform=platform, topic=opp["topic"],
+                              grounded=grounded)
+        trace.add("revalidate", validation)
+        if not validation["ok"]:
+            raise ValueError(f"content validation failed: {validation['errors']}")
 
     result = critique(body, platform=platform, topic=opp["topic"])
     trace.add("critique", {"overall": result["overall"], "issues": result["issues"]})
@@ -220,7 +273,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                    "format": brief.format,
                    "status": "preview", "created_at": ""}
         return {"content": preview, "critique": result, "brief": brief,
-                "persisted": False, "trace": trace.to_dict()}
+                "persisted": False, "provider": gateway.provider.name,
+                "trace": trace.to_dict()}
 
     if _is_duplicate(user_id, body):
         raise ValueError("duplicate of existing content — refusing to store twice")
@@ -232,7 +286,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     try:
         row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
         return {"content": dict(row), "critique": result, "brief": brief,
-                "persisted": True, "trace": trace.to_dict()}
+                "persisted": True, "provider": gateway.provider.name,
+                "trace": trace.to_dict()}
     finally:
         conn.close()
 

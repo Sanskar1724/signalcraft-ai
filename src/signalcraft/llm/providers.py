@@ -82,7 +82,10 @@ class MockProvider(BaseProvider):
                     "limitation honestly, and close with what to try next."
                 ),
             ]
-            text = bodies[seed % len(bodies)]
+            text = bodies[seed % len(bodies)] + (
+                " Worked example: take one small task from this week and apply the "
+                "idea end to end. Note what changed and keep the part that helped."
+            )
         latency = int((time.time() - t0) * 1000) + 1
         return LLMResult(text, "mock", "mock-1", latency, _tokens(prompt), _tokens(text))
 
