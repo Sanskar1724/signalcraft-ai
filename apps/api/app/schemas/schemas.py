@@ -114,6 +114,13 @@ class PasswordIn(BaseModel):
     new: str = Field(min_length=8, max_length=200)
 
 
+class MemoryIn(BaseModel):
+    kind: str = "user_feedback"
+    key: str = Field(min_length=1, max_length=120)
+    value: str = ""
+    confidence: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
 class OnboardingStep(BaseModel):
     """Any subset of wizard fields (§11); unknown keys are rejected with 422."""
 

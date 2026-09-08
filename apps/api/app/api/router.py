@@ -12,10 +12,10 @@ from ..models.models import (ChatOut, ContentDetail, ContentItem, Opportunity,
                              Performance, ProfileOut, TrendSignal)
 from ..repositories.content import get_content_detail
 from ..schemas.schemas import (CalendarUpdate, ChatIn, CritiqueIn, GenerateIn,
-                               ImproveIn, LoginIn, OnboardingStep, PasswordIn,
-                               PerformanceIn, PreferencesUpdate, ProfileUpdate,
-                               ResearchRun, ReviseIn, SaveIn, ScheduleIn,
-                               SignupIn, StatusIn)
+                               ImproveIn, LoginIn, MemoryIn, OnboardingStep,
+                               PasswordIn, PerformanceIn, PreferencesUpdate,
+                               ProfileUpdate, ResearchRun, ReviseIn, SaveIn,
+                               ScheduleIn, SignupIn, StatusIn)
 from ..services.services import (agent, content, context, identity, onboarding,
                                  opportunity, preferences, profile, research,
                                  trend)
@@ -263,6 +263,11 @@ async def post_learn(user_id: int = Depends(get_user_id)) -> dict:
 @router.get("/agent/memory")
 async def get_memory(limit: int = 50, user_id: int = Depends(get_user_id)) -> dict:
     return {"memories": agent.memories(user_id, limit)}
+
+
+@router.post("/agent/memory")
+async def post_memory(body: MemoryIn, user_id: int = Depends(get_user_id)) -> dict:
+    return agent.store_memory(user_id, body.kind, body.key, body.value, body.confidence)
 
 
 @router.get("/calendar")

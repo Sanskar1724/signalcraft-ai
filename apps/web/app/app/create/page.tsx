@@ -4,9 +4,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, type Critique, type GenerateResult, type Opportunity } from "../../../lib/api";
 import { toast } from "../../../components/fx";
-import { Card, CopyButton, Empty, Pill, Quality, Tabs, useApi } from "../../../components/ui";
+import { Card, CopyButton, Empty, Pill, Quality, Tabs, Toggle, useApi } from "../../../components/ui";
 
-const PLATS = ["LinkedIn", "X", "Blog"];
+const PLATS = ["LinkedIn", "X", "Blog", "Newsletter"];
 const FORMATS = ["Insight + example + takeaway", "Tutorial", "Opinion", "Story", "News analysis"];
 
 function words(s: string) {
@@ -165,14 +165,8 @@ function CreateInner() {
               <Tabs tabs={PLATS} active={platform} onChange={setPlatform} />
             </div>
             <div className="row">
-              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <input type="checkbox" style={{ width: 18 }} checked={styleMatch}
-                  onChange={(e) => setStyleMatch(e.target.checked)} /> Match my best style
-              </label>
-              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <input type="checkbox" style={{ width: 18 }} checked={grounded}
-                  onChange={(e) => setGrounded(e.target.checked)} /> Ground in research
-              </label>
+              <Toggle checked={styleMatch} onChange={setStyleMatch} label="Match my best style" />
+              <Toggle checked={grounded} onChange={setGrounded} label="Ground in research" />
             </div>
             <div className="row" style={{ marginTop: 10 }}>
               <button className="btn" onClick={() => generate([platform])} disabled={busy || !oppId}>

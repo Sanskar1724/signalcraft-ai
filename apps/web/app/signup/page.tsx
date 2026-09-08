@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -55,9 +56,16 @@ export default function SignupPage() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </label>
           <label className="field" style={{ marginTop: 10 }}>Password (8+ characters)
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              onKeyDown={(e) => e.key === "Enter" && submit()} />
+            <div className="row" style={{ flexWrap: "nowrap" }}>
+              <input type={show ? "text" : "password"} value={password}
+                style={{ flex: 1 }} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                onKeyDown={(e) => e.key === "Enter" && submit()} />
+              <button type="button" className="btn ghost small" onClick={() => setShow(!show)}
+                aria-label={show ? "Hide password" : "Show password"}>
+                {show ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           <p><button className="btn" style={{ width: "100%" }} onClick={submit} disabled={busy || !name || !email || password.length < 8}>
             {busy ? "Creating…" : "Sign up"}

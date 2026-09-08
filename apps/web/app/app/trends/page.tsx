@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../../../lib/api";
+import { api, type TrendSignal } from "../../../lib/api";
+import { TrendDrawer, direction } from "../../../components/Drawers";
 import { Card, Empty, Loading, ScoreBar, Tabs, useApi } from "../../../components/ui";
 
 export default function TrendingPage() {
   const [tab, setTab] = useState("for_you");
   const [query, setQuery] = useState("");
+  const [sel, setSel] = useState<TrendSignal | null>(null);
   const { data, error, busy, reload } = useApi(() => api.trends(12, tab), [tab]);
+  const opps = useApi(() => api.opportunities());
 
   if (busy) return (<><h1>Trending For You</h1><Loading /></>);
   if (error || !data) return (<><h1>Trends</h1><div className="error">We couldn&apos;t load today&apos;s trends.
@@ -32,8 +35,9 @@ export default function TrendingPage() {
       {rows.length === 0 && <Empty text="No topics match — clear the filter." />}
       {rows.map((t) => (
         <Card key={t.topic} lift>
-          <h3>{t.topic} — {t.trend_score}</h3>
-          <ScoreBar value={t.trend_score} />
+          <div style={{ cursor: "pointer" }} onClick={() => setSel(t)}>
+            <h3>{t.topic} — {t.trend_score} <span className="muted">· {direction(t.growth)}</span></h3>
+            <ScoreBar value={t.trend_score} />
           <div className="dims">
             <span>Growth {t.growth}</span>
             <span>Freshness {t.freshness}</span>
@@ -44,15 +48,18 @@ export default function TrendingPage() {
             <span>Competition {t.competition}</span>
           </div>
           {(t.evidence_titles ?? []).length > 0 && (
-            <details className="trace">
+            <details className="trace" onClick={(e) => e.stopPropagation()}>
               <summary>Evidence ({t.evidence_titles!.length} sources)</summary>
               {(t.evidence_titles ?? []).map((e, i) => (
                 <p key={i} className="muted">· {e}</p>
               ))}
             </details>
           )}
+          </div>
         </Card>
       ))}
+      {sel && <TrendDrawer trend={sel} opportunities={opps.data ?? []}
+        onClose={() => setSel(null)} onChanged={() => { reload(); opps.reload(); }} />}
     </>
   );
 }

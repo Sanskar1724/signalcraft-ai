@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api, type Preferences } from "../../../../lib/api";
-import { Card, Loading, useApi } from "../../../../components/ui";
+import { Card, Loading, Toggle, useApi } from "../../../../components/ui";
 
 const FORMATS = ["Tutorial", "Opinion", "Project breakdown", "News analysis",
   "Story", "Case study", "Educational", "Technical deep dive"];
@@ -96,14 +96,8 @@ export default function PreferencesPage() {
         </div>
         <h2>AI behavior</h2>
         <div className="row">
-          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" style={{ width: 18 }} checked={!!cur.use_trends}
-              onChange={(e) => set("use_trends", e.target.checked ? 1 : 0)} /> Use current trends
-          </label>
-          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" style={{ width: 18 }} checked={!!cur.always_research}
-              onChange={(e) => set("always_research", e.target.checked ? 1 : 0)} /> Always research before generation
-          </label>
+          <Toggle checked={!!cur.use_trends} onChange={(v) => set("use_trends", v ? 1 : 0)} label="Use current trends" />
+          <Toggle checked={!!cur.always_research} onChange={(v) => set("always_research", v ? 1 : 0)} label="Always research before generation" />
         </div>
         <p style={{ marginBottom: 0 }}>
           <button className="btn" onClick={save} disabled={!form}>Save preferences</button>

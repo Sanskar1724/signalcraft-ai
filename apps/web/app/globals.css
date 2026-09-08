@@ -167,6 +167,35 @@ select option { background: #141a26; }
 input[type="checkbox"] { accent-color: var(--accent); }
 input[type="range"] { accent-color: var(--accent); padding: 0; }
 
+/* Toggle switch (replaces default checkboxes) */
+.switch {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: none; border: none; padding: 6px 2px; cursor: pointer;
+  color: var(--text); font-size: 13.5px;
+}
+.switch .knob {
+  width: 38px; height: 22px; border-radius: 99px; flex-shrink: 0;
+  background: rgba(255,255,255,.12); border: 1px solid var(--border);
+  position: relative; transition: background .18s ease, border-color .18s ease;
+}
+.switch .knob::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%; background: #8f99ad;
+  transition: transform .18s ease, background .18s ease;
+}
+.switch.on .knob { background: rgba(45,212,191,.3); border-color: var(--accent); }
+.switch.on .knob::after { transform: translateX(16px); background: var(--accent); }
+.switchlabel { color: var(--muted); }
+.switch.on .switchlabel { color: var(--text); }
+
+/* Range restyle */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px;
+  background: rgba(255,255,255,.12); border: none; padding: 0; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: none; }
+
 /* Blocks */
 .fact { border-left: 3px solid var(--accent2); padding-left: 12px; margin: 10px 0; }
 .interp { border-left: 3px solid var(--accent); padding-left: 12px; margin: 10px 0; }

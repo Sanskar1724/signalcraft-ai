@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { api } from "../../../lib/api";
 import { Card, Loading, useApi } from "../../../components/ui";
@@ -38,7 +39,8 @@ function stageLabel(stage: string) {
 
 export default function AgentPage() {
   const [q, setQ] = useState("");
-  const [log, setLog] = useState<{ me: string; at: string; bot: string; trace: { stage: string }[] }[]>([]);
+  const [log, setLog] = useState<{ me: string; at: string; bot: string;
+    actions: { label: string; href: string }[]; trace: { stage: string }[] }[]>([]);
   const [busy, setBusy] = useState(false);
   const ctx = useApi(() => api.context());
   const trends = useApi(() => api.trends(3));
@@ -51,9 +53,9 @@ export default function AgentPage() {
     setBusy(true);
     try {
       const r = await api.chat(msg);
-      setLog((l) => [...l, { me: msg, at: stamp(), bot: r.answer, trace: r.trace?.steps ?? [] }]);
+      setLog((l) => [...l, { me: msg, at: stamp(), bot: r.answer, actions: r.actions ?? [], trace: r.trace?.steps ?? [] }]);
     } catch (e) {
-      setLog((l) => [...l, { me: msg, at: stamp(), bot: `Error: ${(e as Error).message}`, trace: [] }]);
+      setLog((l) => [...l, { me: msg, at: stamp(), bot: `Error: ${(e as Error).message}`, actions: [], trace: [] }]);
     } finally {
       setBusy(false);
     }
@@ -74,9 +76,18 @@ export default function AgentPage() {
             {log.map((m, i) => (
               <div key={i} style={{ display: "contents" }}>
                 <div className="bubble me">{m.me}<div className="stamp">{m.at}</div></div>
-                <div className="bubble">
-                  <pre>{m.bot}</pre>
-                  <div className="stamp">{m.at}</div>
+            <div className="bubble">
+              <pre>{m.bot}</pre>
+              <div className="stamp">{m.at}</div>
+              {m.actions.length > 0 && (
+                <div className="row" style={{ marginTop: 8 }}>
+                  {m.actions.map((a) => (
+                    <Link key={a.href + a.label} href={a.href} className="btn small" style={{ textDecoration: "none" }}>
+                      {a.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
               {m.trace.length > 0 && (
                 <details className="trace">
                   <summary>How I got this ({m.trace.length} steps)</summary>

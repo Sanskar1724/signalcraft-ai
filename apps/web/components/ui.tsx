@@ -54,7 +54,8 @@ export function ScoreBar({ value, max = 100 }: { value: number; max?: number }) 
 }
 
 export function Pill({ kind, children }: { kind?: string; children: ReactNode }) {
-  const cls = kind === "LinkedIn" ? "pill li" : kind === "X" ? "pill x" : kind === "Blog" ? "pill blog" : "pill";
+  const cls = kind === "LinkedIn" ? "pill li" : kind === "X" ? "pill x"
+    : kind === "Blog" || kind === "Newsletter" ? "pill blog" : "pill";
   return <span className={cls}>{children}</span>;
 }
 
@@ -119,10 +120,18 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
 }
 
 export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="row" style={{ alignItems: "center" }}>
           <h3 style={{ margin: 0, flex: 1 }}>{title}</h3>
           <button className="btn ghost small" onClick={onClose}>Close</button>
@@ -135,9 +144,10 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
 
 export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="row" style={{ gap: 6 }}>
+    <div className="row" style={{ gap: 6 }} role="tablist">
       {tabs.map((t) => (
-        <button key={t} className={t === active ? "btn small" : "btn ghost small"} onClick={() => onChange(t)}>
+        <button key={t} role="tab" aria-selected={t === active}
+          className={t === active ? "btn small" : "btn ghost small"} onClick={() => onChange(t)}>
           {t}
         </button>
       ))}
@@ -145,8 +155,17 @@ export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: strin
   );
 }
 
-export function ApiStatus({ check }: { check: () => Promise<unknown> }) {
-  const [ok, setOk] = useState<boolean | null>(null);
+export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label}
+      className={"switch" + (checked ? " on" : "")} onClick={() => onChange(!checked)}>
+      <span className="knob" />
+      <span className="switchlabel">{label}</span>
+    </button>
+  );
+}
+
+export function ApiStatus({ check }: { check: () => Promise<unknown> }) {  const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
     const ping = () => check().then(() => live && setOk(true)).catch(() => live && setOk(false));

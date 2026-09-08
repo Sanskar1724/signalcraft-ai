@@ -31,6 +31,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ limit, use_live: true }),
     }),
+  researchDocs: (query = "", limit = 20) =>
+    req<{ documents: { id: number; title: string; source: string }[] }>(
+      `/api/research?query=${encodeURIComponent(query)}&limit=${limit}`),
   generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string; style_match?: boolean; grounded?: boolean }) =>
     req<GenerateResult>("/api/content/generate", {
       method: "POST",
@@ -58,6 +61,9 @@ export const api = {
     }),
   library: () => req<ContentItem[]>("/api/content?limit=50"),
   detail: (id: number) => req<ContentDetail>(`/api/content/${id}`),
+  removeContent: (id: number) => req(`/api/content/${id}`, { method: "DELETE" }),
+  duplicateContent: (id: number) =>
+    req<{ content: ContentItem & { body: string } }>(`/api/content/${id}/duplicate`, { method: "POST" }),
   setStatus: (id: number, status: string) =>
     req(`/api/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
   logPerformance: (id: number, m: PerformanceInput) =>
@@ -68,9 +74,15 @@ export const api = {
     req<ChatReply>("/api/agent/chat", { method: "POST", body: JSON.stringify({ message }) }),
   learn: () => req<{ learned: string[] }>("/api/agent/learn", { method: "POST" }),
   memories: () => req<{ memories: Memory[] }>("/api/agent/memory"),
+  storeMemory: (kind: string, key: string, value = "") =>
+    req("/api/agent/memory", { method: "POST", body: JSON.stringify({ kind, key, value }) }),
   calendar: () => req<{ items: CalendarItem[] }>("/api/calendar"),
   schedule: (s: { platform: string; scheduled_for: string; content_id?: number; notes: string }) =>
     req("/api/calendar", { method: "POST", body: JSON.stringify(s) }),
+  updateCalendar: (id: number, s: Record<string, unknown>) =>
+    req(`/api/calendar/${id}`, { method: "PUT", body: JSON.stringify(s) }),
+  duplicateCalendar: (id: number) =>
+    req(`/api/calendar/${id}/duplicate`, { method: "POST" }),
   signup: (name: string, email: string, password: string) =>
     req<{ user: { onboarding_status: string }; token: string }>("/api/auth/signup", {
       method: "POST",
@@ -209,13 +221,14 @@ export interface AnalyticsSummary {
   weak_topics: { topic: string; posts: number; avg_engagement: number }[];
   by_platform: { platform: string; posts: number; avg_engagement: number }[];
   top_content: { id: number; title: string; performance_score: number }[];
-  rows: { id: number; title: string; platform: string; impressions: number; engagement_rate: number; performance_score: number }[];
+  rows: { id: number; title: string; platform: string; impressions: number; engagement_rate: number; performance_score: number; recorded_at: string }[];
 }
 
 export interface ChatReply {
   answer: string;
   intent: string;
   request_id: string;
+  actions: { label: string; href: string }[];
   trace: { request_id: string; steps: { stage: string; detail?: unknown }[] };
 }
 
@@ -227,6 +240,7 @@ export interface Memory {
 }
 
 export interface CalendarItem {
+  id: number;
   scheduled_for: string;
   platform: string;
   status: string;

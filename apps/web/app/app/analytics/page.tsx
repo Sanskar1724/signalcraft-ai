@@ -1,58 +1,81 @@
 "use client";
 
+import { useState } from "react";
 import { api } from "../../../lib/api";
-import { HBar, Sparkline } from "../../../components/charts";
-import { Card, Empty, Loading, Stat, useApi } from "../../../components/ui";
+import { Donut, HBar, Sparkline } from "../../../components/charts";
+import { Card, Empty, Loading, Stat, Tabs, useApi } from "../../../components/ui";
+
+const RANGES: Record<string, number> = { "7 days": 7, "30 days": 30, "90 days": 90, "All time": 100000 };
 
 export default function AnalyticsPage() {
-  const { data, error, busy } = useApi(() => api.analytics());
+  const { data, error, busy, reload } = useApi(() => api.analytics());
+  const [range, setRange] = useState("All time");
 
   if (busy) return (<><h1>Analytics</h1><Loading /></>);
-  if (error || !data) return (<><h1>Analytics</h1><div className="error">API unavailable: {error}</div></>);
+  if (error || !data) return (<><h1>Analytics</h1><div className="error">We couldn&apos;t load analytics — your content is safe.
+    <p><button className="btn small" onClick={reload}>Retry</button></p></div></>);
 
-  const rows = [...(data.rows ?? [])].reverse();
+  const cutoff = Date.now() - RANGES[range] * 86400 * 1000;
+  const inRange = (data.rows ?? []).filter((r) => {
+    const t = new Date((r.recorded_at || "").replace(" ", "T") + "Z").getTime();
+    return Number.isNaN(t) || t >= cutoff;
+  });
+  const rows = [...inRange].reverse();
+  const tot = (k: "impressions") => inRange.reduce((a, r) => a + (r[k] || 0), 0);
+  const avg = inRange.length ? inRange.reduce((a, r) => a + r.engagement_rate, 0) / inRange.length : 0;
   const platMax = Math.max(...data.by_platform.map((x) => x.avg_engagement), 1);
-  const weak = [...(data.rows ?? [])].sort((a, b) => a.engagement_rate - b.engagement_rate).slice(0, 5);
+  const weak = [...inRange].sort((a, b) => a.engagement_rate - b.engagement_rate).slice(0, 5);
+  const byPlat: Record<string, number> = {};
+  for (const r of inRange) byPlat[r.platform] = (byPlat[r.platform] || 0) + 1;
 
   return (
     <>
-      <h1>Analytics</h1>
-      <p className="sub">Engagement trend, best topics, formats, platforms — and weak spots.</p>
-      <div className="grid3">
-        <Stat hot value={String(data.posts)} label="Posts tracked" />
-        <Stat value={`${data.avg_engagement}%`} label="Avg engagement" />
-        <Stat value={data.by_platform[0]?.platform ?? "—"} label="Top platform" />
+      <h1>Content Analytics</h1>
+      <p className="sub">Understand what your audience actually responds to.</p>
+      <Tabs tabs={Object.keys(RANGES)} active={range} onChange={setRange} />
+      <div className="grid3" style={{ marginTop: 12 }}>
+        <Stat hot value={String(inRange.length)} label="Posts in range" />
+        <Stat value={String(tot("impressions"))} label="Impressions" />
+        <Stat value={`${avg.toFixed(1)}%`} label="Avg engagement rate" />
       </div>
-      <Card>
-        <h3>Engagement trend</h3>
-        <Sparkline points={rows.map((r) => r.engagement_rate)} w={640} h={110} />
-        <p className="muted">Oldest → newest across your library.</p>
-      </Card>
+      <div className="grid2" style={{ marginTop: 12 }}>
+        <Card>
+          <h3>Performance over time</h3>
+          <Sparkline points={rows.map((r) => r.engagement_rate)} w={480} h={110} />
+          <p className="muted">Oldest → newest in range.</p>
+        </Card>
+        <Card>
+          <h3>Posts by platform</h3>
+          <Donut parts={Object.entries(byPlat).map(([label, value]) => ({ label, value }))} />
+        </Card>
+      </div>
       <div className="grid3">
         <Card>
           <h3>Best topics</h3>
           {data.best_topics.map((t) => (
             <HBar key={t.topic} label={`${t.topic} (${t.posts})`} value={t.avg_engagement} max={platMax} />
           ))}
+          {!data.best_topics.length && <p className="muted">No data yet.</p>}
         </Card>
         <Card>
-          <h3>Best formats</h3>
+          <h3>Platform comparison</h3>
           {data.by_platform.map((t) => (
             <HBar key={t.platform} label={`${t.platform} (${t.posts})`} value={t.avg_engagement} max={platMax} />
           ))}
         </Card>
         <Card>
-          <h3>Weak-performing content</h3>
+          <h3>Weak content</h3>
           {weak.map((r) => (
             <p key={r.id} className="muted">{r.title.slice(0, 60)} — {r.engagement_rate}%</p>
           ))}
+          {!weak.length && <p className="muted">Nothing weak in range.</p>}
         </Card>
       </div>
       <h2>Best-performing content</h2>
       {(data.top_content ?? []).map((c) => (
         <Card key={c.id}><p style={{ margin: 0 }}><b>{c.title.slice(0, 80)}</b> — score {c.performance_score}</p></Card>
       ))}
-      {data.posts === 0 && <Empty text="Log performance for a post to unlock analytics." />}
+      {data.posts === 0 && <Empty text="No performance data yet. Once you publish content and enter metrics, SignalCraft will learn what works best for you." />}
     </>
   );
 }

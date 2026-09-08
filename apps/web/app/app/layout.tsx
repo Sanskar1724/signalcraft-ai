@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import Logo from "../../components/Logo";
+import GlobalSearch, { useCommandK } from "../../components/Search";
+import Notifications from "../../components/Notifications";
 import Status from "../../components/Status";
 import { clearToken, getToken } from "../../lib/auth";
 import { api } from "../../lib/api";
@@ -49,6 +51,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useCommandK(() => setSearchOpen(true));
 
   useEffect(() => {
     if (!getToken()) {
@@ -104,6 +108,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             ☰
           </button>
           <span className="crumbs">SignalCraft / {CRUMBS[path] ?? "Workspace"}</span>
+          <button className="iconbtn" aria-label="Search (Ctrl K)" onClick={() => setSearchOpen(true)}>
+            Search ⌘K
+          </button>
+          <Notifications />
           <Status />
           <div style={{ position: "relative" }}>
             <button className="avatar" aria-label="Profile menu" onClick={() => setMenu(!menu)}>
@@ -120,6 +128,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="main">{children}</main>
       </div>
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <nav className="mobilenav" aria-label="Mobile">
         {MOBILE.map(([label, href]) => (
           <Link key={href} href={href}>{label}</Link>

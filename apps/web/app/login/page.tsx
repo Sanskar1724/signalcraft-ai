@@ -13,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -53,14 +54,22 @@ export default function LoginPage() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </label>
           <label className="field" style={{ marginTop: 10 }}>Password
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              onKeyDown={(e) => e.key === "Enter" && submit()} />
+            <div className="row" style={{ flexWrap: "nowrap" }}>
+              <input type={show ? "text" : "password"} value={password}
+                style={{ flex: 1 }} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                onKeyDown={(e) => e.key === "Enter" && submit()} />
+              <button type="button" className="btn ghost small" onClick={() => setShow(!show)}
+                aria-label={show ? "Hide password" : "Show password"}>
+                {show ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           <p><button className="btn" style={{ width: "100%" }} onClick={submit} disabled={busy || !email || !password}>
             {busy ? "Logging in…" : "Continue"}
           </button></p>
           {error && <p className="error">{error}</p>}
+          <p className="muted">Forgot your password? Email reset isn&apos;t enabled on this server — use Google sign-in or ask the admin to reset it.</p>
           <div className="or">or</div>
           <GoogleButton mode="login" />
           <p className="muted">Don&apos;t have an account? <Link href="/signup" style={{ color: "var(--accent)" }}>Sign up</Link></p>

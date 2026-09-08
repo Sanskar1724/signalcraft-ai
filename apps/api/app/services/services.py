@@ -302,6 +302,15 @@ class agent:
         return _memory.recall(user_id, limit=limit)
 
     @staticmethod
+    def store_memory(user_id: int = 1, kind: str = "user_feedback",
+                     key: str = "", value: str = "", confidence: float = 0.6) -> dict:
+        from signalcraft.memory import VALID_KINDS, remember
+        if kind not in VALID_KINDS:
+            raise ValueError(f"invalid memory kind: {kind}")
+        remember(user_id, kind, key, value, confidence)
+        return {"ok": True, "kind": kind, "key": key}
+
+    @staticmethod
     def calendar(user_id: int = 1, limit: int = 30) -> list[dict]:
         return calendar.upcoming(user_id, limit)
 

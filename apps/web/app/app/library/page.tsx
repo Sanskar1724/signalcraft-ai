@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api, type ContentDetail, type ContentItem } from "../../../lib/api";
+import { toast } from "../../../components/fx";
 import { timeAgo } from "../../../components/charts";
 import { Card, CopyButton, Empty, Loading, Modal, Pill, Quality, Tabs, useApi } from "../../../components/ui";
 
@@ -14,6 +15,43 @@ export default function LibraryPage() {
   const [detail, setDetail] = useState<ContentDetail | null>(null);
   const [perf, setPerf] = useState({ impressions: 1000, likes: 50, comments: 5, shares: 2, clicks: 2, saves: 3, reach: 800 });
   const [saved, setSaved] = useState("");
+  const [view, setView] = useState("List");
+  const [sel, setSel] = useState<Set<number>>(new Set());
+
+  function toggleSel(id: number) {
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function bulk(status: string) {
+    const ids = Array.from(sel);
+    for (const id of ids) {
+      await api.setStatus(id, status);
+    }
+    toast(`${ids.length} item(s) → ${status}.`);
+    setSel(new Set());
+    lib.reload();
+  }
+
+  async function bulkDelete() {
+    const ids = Array.from(sel);
+    for (const id of ids) {
+      await api.removeContent(id);
+    }
+    toast(`${ids.length} item(s) deleted.`);
+    setSel(new Set());
+    lib.reload();
+  }
+
+  async function duplicate(id: number) {
+    await api.duplicateContent(id);
+    toast("Duplicated as a new draft.");
+    lib.reload();
+  }
 
   const items = (lib.data ?? []).filter(
     (c) =>
@@ -48,24 +86,67 @@ export default function LibraryPage() {
         <div style={{ flex: 2, minWidth: 220 }}>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search titles…" />
         </div>
-        <Tabs tabs={["All", "LinkedIn", "X", "Blog"]} active={platform} onChange={setPlatform} />
+        <Tabs tabs={["All", "LinkedIn", "X", "Blog", "Newsletter"]} active={platform} onChange={setPlatform} />
       </div>
       <div className="row" style={{ marginTop: 8 }}>
         <span className="lbl">Status</span>
         <Tabs tabs={["All", "draft", "ready", "published", "archived"]} active={status} onChange={setStatus} />
+        <span style={{ flex: 1 }} />
+        <Tabs tabs={["List", "Grid", "Timeline"]} active={view} onChange={setView} />
       </div>
+      {sel.size > 0 && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <span className="muted">{sel.size} selected</span>
+          {(["draft", "ready", "published", "archived"] as const).map((s) => (
+            <button key={s} className="btn ghost small" onClick={() => bulk(s)}>→ {s}</button>
+          ))}
+          <button className="btn ghost small" onClick={bulkDelete}>Delete</button>
+          <button className="btn ghost small" onClick={() => setSel(new Set())}>Clear</button>
+        </div>
+      )}
       {items.length === 0 && <Empty text="Nothing matches — clear the filters." />}
+      {view === "Timeline" ? (
+        <div>
+          {items.map((c) => (
+            <div key={c.id} className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
+              <span className="muted" style={{ minWidth: 110 }}>{timeAgo(c.created_at)}</span>
+              <span className="navdot" style={{ marginTop: 6 }} />
+              <div style={{ flex: 1 }}>
+                <Card key={c.id} lift>
+                  <div className="row" style={{ alignItems: "center", cursor: "pointer" }} onClick={() => open(c.id)}>
+                    <Pill kind={c.platform}>{c.platform}</Pill>
+                    <b>{c.title}</b>
+                    <span style={{ flex: 1 }} />
+                    <Quality score={c.quality_score} />
+                  </div>
+                  <p className="muted">{c.status}</p>
+                </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+      <div className={view === "Grid" ? "grid2" : ""}>
       {items.map((c) => (
         <Card key={c.id} lift>
-          <div className="row" style={{ alignItems: "center", cursor: "pointer" }} onClick={() => open(c.id)}>
-            <Pill kind={c.platform}>{c.platform}</Pill>
-            <b>{c.title}</b>
-            <span style={{ flex: 1 }} />
-            <Quality score={c.quality_score} />
+          <div className="row" style={{ alignItems: "center" }}>
+            <input type="checkbox" aria-label={`Select ${c.title}`} checked={sel.has(c.id)}
+              onChange={() => toggleSel(c.id)} style={{ width: 18 }} />
+            <div className="row" style={{ alignItems: "center", cursor: "pointer", flex: 1 }} onClick={() => open(c.id)}>
+              <Pill kind={c.platform}>{c.platform}</Pill>
+              <b>{c.title}</b>
+              <span style={{ flex: 1 }} />
+              <Quality score={c.quality_score} />
+            </div>
           </div>
           <p className="muted">{c.status} · {timeAgo(c.created_at)}</p>
+          <div className="row">
+            <button className="btn ghost small" onClick={() => duplicate(c.id)}>Duplicate</button>
+          </div>
         </Card>
       ))}
+      </div>
+      )}
 
       <Modal open={openId !== null} onClose={() => setOpenId(null)} title={detail?.title ?? "Loading…"}>
         {!detail && <Loading />}
