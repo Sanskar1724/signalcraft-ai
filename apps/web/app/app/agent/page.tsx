@@ -42,8 +42,7 @@ export default function AgentPage() {
   const [log, setLog] = useState<{ me: string; at: string; bot: string;
     actions: { label: string; href: string }[]; trace: { stage: string }[] }[]>([]);
   const [busy, setBusy] = useState(false);
-  const ctx = useApi(() => api.context());
-  const trends = useApi(() => api.trends(3));
+  const ctx = useApi(() => api.context());  const trends = useApi(() => api.trends(3));
   const opps = useApi(() => api.opportunities());
 
   async function ask(text: string) {

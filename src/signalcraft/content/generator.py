@@ -82,7 +82,8 @@ def _style_reference(user_id: int, platform: str) -> str:
 
 
 def build_brief(profile, opp: dict, evidence: list[str],
-                prefs: dict | None = None, style_ref: str = "") -> ContentBrief:
+                prefs: dict | None = None, style_ref: str = "",
+                format: str | None = None) -> ContentBrief:
     """Structured content brief (§13) built deterministically, LLM drafts from it."""
     prefs = prefs or {}
     cta_by_pref = {
@@ -95,6 +96,7 @@ def build_brief(profile, opp: dict, evidence: list[str],
         topic=opp.get("topic", ""),
         target_audience=opp.get("audience", profile.audience),
         platform=opp.get("platform", "LinkedIn"),
+        format=format or opp.get("format", "") or "Insight + example + takeaway",
         core_message=opp.get("angle", ""),
         angle=opp.get("angle", ""),
         supporting_evidence=evidence[:3],
@@ -119,7 +121,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                      user_id: int = 1, gateway: LLMGateway | None = None,
                      trace: Trace | None = None, tone: str | None = None,
                      length: str = "medium", style_match: bool = True,
-                     grounded: bool = True, persist: bool = True) -> dict:
+                     grounded: bool = True, persist: bool = True,
+                     format: str | None = None) -> dict:
     if length not in LENGTH_TOKENS:
         raise ValueError(f"invalid length: {length}")
     gateway = gateway or LLMGateway()
@@ -146,7 +149,7 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
         prefs = {**prefs, "tone": tone}
     style_ref = _style_reference(user_id, platform) if style_match else ""
     brief = build_brief(profile, {**opp, "platform": platform}, evidence, prefs,
-                        style_ref)
+                        style_ref, format)
     trace.add("brief", brief.model_dump())
     trace.add("grounding", {"grounded": grounded, "style_match": bool(style_ref),
                             "evidence_n": len(evidence)})
@@ -192,6 +195,7 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
                    "opportunity_id": opportunity_id, "platform": platform,
                    "title": hook[:200], "body": body, "hook": hook[:200],
                    "cta": cta[:200], "quality_score": result["overall"],
+                   "format": brief.format,
                    "status": "preview", "created_at": ""}
         return {"content": preview, "critique": result, "brief": brief,
                 "persisted": False, "trace": trace.to_dict()}
@@ -200,7 +204,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
         raise ValueError("duplicate of existing content — refusing to store twice")
 
     cid = _store(user_id, opportunity_id, platform, hook, body, cta,
-                 result["overall"], brief.model_dump_json(), json.dumps(result))
+                 result["overall"], brief.model_dump_json(), json.dumps(result),
+                 brief.format)
     conn = get_conn()
     try:
         row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
@@ -261,15 +266,15 @@ def _is_duplicate(user_id: int, body: str) -> bool:
 
 def _store(user_id: int, opportunity_id: int | None, platform: str, hook: str,
            body: str, cta: str, score: float, brief_json: str,
-           critique_json: str) -> int:
+           critique_json: str, format: str = "") -> int:
     conn = get_conn()
     try:
         cur = conn.execute(
             "INSERT INTO content (uuid, user_id, opportunity_id, platform, title, body,"
-            " hook, cta, quality_score)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " hook, cta, quality_score, format)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
             (new_uuid(), user_id, opportunity_id, platform, hook[:200], body,
-             hook[:200], cta[:200], score),
+             hook[:200], cta[:200], score, format[:120]),
         )
         cid = cur.lastrowid
         conn.execute(
@@ -282,9 +287,9 @@ def _store(user_id: int, opportunity_id: int | None, platform: str, hook: str,
     finally:
         conn.close()
 
-
-def save_draft(user_id: int, platform: str, title: str, body: str,               hook: str = "", cta: str = "", opportunity_id: int | None = None,
-               brief: dict | None = None) -> dict:
+def save_draft(user_id: int, platform: str, title: str, body: str,
+               hook: str = "", cta: str = "", opportunity_id: int | None = None,
+               brief: dict | None = None, format: str = "") -> dict:
     """Explicit Save (§13): validate + dedupe + persist a preview as v1 draft."""
     import json as _json
     from .sanitize import scrub as _scrub
@@ -295,8 +300,10 @@ def save_draft(user_id: int, platform: str, title: str, body: str,              
     if _is_duplicate(user_id, body):
         raise ValueError("duplicate of existing content — refusing to store twice")
     result = critique(body, platform=platform)
+    fmt = format or (brief or {}).get("format", "")
     cid = _store(user_id, opportunity_id, platform, hook or title[:200], body,
-                 cta, result["overall"], _json.dumps(brief or {}), _json.dumps(result))
+                 cta, result["overall"], _json.dumps(brief or {}), _json.dumps(result),
+                 fmt)
     conn = get_conn()
     try:
         row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
@@ -350,6 +357,44 @@ def duplicate_content(content_id: int, user_id: int = 1) -> dict:
         conn.commit()
         out = conn.execute("SELECT * FROM content WHERE id=?", (nid,)).fetchone()
         return {"content": dict(out)}
+    finally:
+        conn.close()
+
+
+def restore_version(content_id: int, version: int, user_id: int = 1) -> dict:
+    """Restore an old version by copying its body forward as a new version.
+
+    History is append-only: nothing is overwritten, provenance is preserved.
+    """
+    import json as _json
+    conn = get_conn()
+    try:
+        head = conn.execute("SELECT * FROM content WHERE id=? AND user_id=?",
+                            (content_id, user_id)).fetchone()
+        if head is None:
+            raise ValueError(f"content {content_id} not found")
+        src = conn.execute("SELECT * FROM content_versions WHERE content_id=? AND version=?",
+                           (content_id, version)).fetchone()
+        if src is None:
+            raise ValueError(f"version {version} not found")
+        old = dict(src)
+        cur_max = conn.execute("SELECT MAX(version) AS m FROM content_versions"
+                               " WHERE content_id=?", (content_id,)).fetchone()["m"] or 1
+        from .sanitize import scrub
+        body = scrub(old["body"])
+        result = critique(body, platform=head["platform"])
+        conn.execute(
+            "UPDATE content SET body=?, quality_score=? WHERE id=?",
+            (body, result["overall"], content_id))
+        conn.execute(
+            "INSERT INTO content_versions (uuid, content_id, version, brief, body,"
+            " critique, score) VALUES (?,?,?,?,?,?,?)",
+            (new_uuid(), content_id, cur_max + 1, old["brief"], body,
+             _json.dumps(result), result["overall"]),
+        )
+        conn.commit()
+        return {"content_id": content_id, "version": cur_max + 1,
+                "restored_from": version, "critique": result, "body": body}
     finally:
         conn.close()
 

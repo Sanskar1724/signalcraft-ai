@@ -30,6 +30,7 @@ def list_opportunities_for_actions(intent: str, user_id: int = 1) -> list[dict]:
         return [
             {"label": "Create content", "href": f"/app/create?opp={oid}"},
             {"label": "View opportunity", "href": "/app/opportunities"},
+            {"label": "Research more", "href": "/app/trends"},
         ]
     if intent in {"transform_linkedin", "transform_x", "transform_blog"}:
         return [{"label": "Open library", "href": "/app/library"}]

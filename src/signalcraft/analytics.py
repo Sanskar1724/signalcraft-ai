@@ -56,7 +56,7 @@ def summary(user_id: int = 1) -> dict:
     conn = get_conn()
     try:
         rows = [dict(r) for r in conn.execute(
-            "SELECT c.id, c.platform, c.title, c.hook, o.topic AS topic,"
+            "SELECT c.id, c.platform, c.title, c.hook, c.format, o.topic AS topic,"
             " COALESCE(p.impressions,0) AS impressions, COALESCE(p.likes,0) AS likes,"
             " COALESCE(p.comments,0) AS comments, COALESCE(p.shares,0) AS shares,"
             " COALESCE(p.reach,0) AS reach,"
@@ -84,6 +84,7 @@ def summary(user_id: int = 1) -> dict:
     by_topic = agg("topic")
     by_platform = agg("platform")
     by_hook = agg("hook")
+    by_format = agg("format")
     top_content = sorted(rows, key=lambda r: r.get("performance_score", 0), reverse=True)[:5]
     return {
         "posts": len(rows),
@@ -94,6 +95,7 @@ def summary(user_id: int = 1) -> dict:
         "by_platform": by_platform,
         "best_formats": by_platform[:3],
         "weak_formats": by_platform[-3:][::-1] if len(by_platform) > 1 else [],
+        "by_format": by_format,
         "best_hooks": by_hook[:3],
         "weak_hooks": by_hook[-3:][::-1] if len(by_hook) > 1 else [],
         "top_content": [{"id": r["id"], "title": r["title"],

@@ -69,7 +69,7 @@ function CreateInner() {
     try {
       const out = { ...drafts };
       for (const p of plats) {
-        const r = await api.generate(oppId, p, { tone: tone || undefined, length, style_match: styleMatch, grounded });
+        const r = await api.generate(oppId, p, { tone: tone || undefined, length, style_match: styleMatch, grounded, format });
         out[p] = {
           brief: r.brief, critique: r.critique, hook: r.content.hook,
           title: r.content.title, body: r.content.body, savedId: null,
@@ -106,7 +106,7 @@ function CreateInner() {
     try {
       const r = await api.save({
         opportunity_id: oppId, platform: plat, title: d.title,
-        body: d.body, hook: d.hook, brief: d.brief as Record<string, unknown>,
+        body: d.body, hook: d.hook, brief: d.brief as Record<string, unknown>, format,
       });
       setDrafts({ ...drafts, [plat]: { ...d, savedId: r.content.id } });
       toast("Saved to Library.");

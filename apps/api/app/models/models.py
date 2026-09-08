@@ -64,6 +64,7 @@ class ContentItem(BaseModel):
     hook: str = ""
     cta: str = ""
     quality_score: float = 0
+    format: str = ""
     status: str = "draft"
     created_at: str = ""
 

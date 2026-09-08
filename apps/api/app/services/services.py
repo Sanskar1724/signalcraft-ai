@@ -166,21 +166,23 @@ class content:
     @staticmethod
     def generate(opportunity_id: int, platform: str = "LinkedIn", user_id: int = 1,
                  tone: str | None = None, length: str = "medium",
-                 style_match: bool = True, grounded: bool = True) -> dict:
+                 style_match: bool = True, grounded: bool = True,
+                 format: str | None = None) -> dict:
         # §13: preview only — explicit Save persists.
         res = _generate(opportunity_id, platform=platform, user_id=user_id,
                         tone=tone, length=length, style_match=style_match,
-                        grounded=grounded, persist=False)
+                        grounded=grounded, persist=False, format=format)
         return {"content": res["content"], "critique": res["critique"],
                 "brief": res["brief"].model_dump(), "persisted": False}
 
     @staticmethod
     def save(user_id: int = 1, opportunity_id: int | None = None,
              platform: str = "LinkedIn", title: str = "", body: str = "",
-             hook: str = "", cta: str = "", brief: dict | None = None) -> dict:
+             hook: str = "", cta: str = "", brief: dict | None = None,
+             format: str = "") -> dict:
         from signalcraft.content import save_draft
         return save_draft(user_id, platform, title, body, hook, cta,
-                          opportunity_id, brief)
+                          opportunity_id, brief, format)
 
     @staticmethod
     def remove(user_id: int = 1, content_id: int = 0) -> dict:
@@ -191,6 +193,11 @@ class content:
     def duplicate(user_id: int = 1, content_id: int = 0) -> dict:
         from signalcraft.content import duplicate_content
         return duplicate_content(content_id, user_id)
+
+    @staticmethod
+    def restore(user_id: int = 1, content_id: int = 0, version: int = 1) -> dict:
+        from signalcraft.content import restore_version
+        return restore_version(content_id, version, user_id)
 
     @staticmethod
     def critique(body: str, platform: str = "LinkedIn", topic: str = "") -> dict:

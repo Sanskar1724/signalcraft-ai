@@ -34,7 +34,7 @@ export const api = {
   researchDocs: (query = "", limit = 20) =>
     req<{ documents: { id: number; title: string; source: string }[] }>(
       `/api/research?query=${encodeURIComponent(query)}&limit=${limit}`),
-  generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string; style_match?: boolean; grounded?: boolean }) =>
+  generate: (opportunity_id: number, platform: string, opts?: { tone?: string; length?: string; style_match?: boolean; grounded?: boolean; format?: string }) =>
     req<GenerateResult>("/api/content/generate", {
       method: "POST",
       body: JSON.stringify({ opportunity_id, platform, ...opts }),
@@ -54,13 +54,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ body, platform }),
     }),
-  save: (d: { opportunity_id?: number; platform: string; title: string; body: string; hook: string; cta?: string; brief?: Record<string, unknown> }) =>
+  save: (d: { opportunity_id?: number; platform: string; title: string; body: string; hook: string; cta?: string; brief?: Record<string, unknown>; format?: string }) =>
     req<{ content: ContentItem & { body: string } }>("/api/content/save", {
       method: "POST",
       body: JSON.stringify(d),
     }),
   library: () => req<ContentItem[]>("/api/content?limit=50"),
   detail: (id: number) => req<ContentDetail>(`/api/content/${id}`),
+  restore: (id: number, version: number) =>
+    req(`/api/content/${id}/restore`, { method: "POST", body: JSON.stringify({ version }) }),
   removeContent: (id: number) => req(`/api/content/${id}`, { method: "DELETE" }),
   duplicateContent: (id: number) =>
     req<{ content: ContentItem & { body: string } }>(`/api/content/${id}/duplicate`, { method: "POST" }),
@@ -220,6 +222,7 @@ export interface AnalyticsSummary {
   best_topics: { topic: string; posts: number; avg_engagement: number }[];
   weak_topics: { topic: string; posts: number; avg_engagement: number }[];
   by_platform: { platform: string; posts: number; avg_engagement: number }[];
+  by_format: { format: string; posts: number; avg_engagement: number }[];
   top_content: { id: number; title: string; performance_score: number }[];
   rows: { id: number; title: string; platform: string; impressions: number; likes: number; comments: number; shares: number; reach: number; engagement_rate: number; performance_score: number; recorded_at: string }[];
 }

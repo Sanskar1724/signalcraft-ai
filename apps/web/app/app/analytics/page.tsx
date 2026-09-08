@@ -58,6 +58,21 @@ export default function AnalyticsPage() {
       </div>
       <div className="grid3">
         <Card>
+          <h3>Score distribution</h3>
+          <Donut parts={[
+            { label: "Strong (8+)", value: inRange.filter((r) => r.performance_score >= 8).length },
+            { label: "Solid (5-8)", value: inRange.filter((r) => r.performance_score >= 5 && r.performance_score < 8).length },
+            { label: "Weak (<5)", value: inRange.filter((r) => r.performance_score < 5).length },
+          ]} />
+        </Card>
+        <Card>
+          <h3>Format performance</h3>
+          {(data.by_format ?? []).map((t) => (
+            <HBar key={t.format} label={`${t.format || "Unspecified"} (${t.posts})`} value={t.avg_engagement} max={platMax} />
+          ))}
+          {!(data.by_format ?? []).length && <p className="muted">No format data yet — set a format when creating.</p>}
+        </Card>
+        <Card>
           <h3>Best topics</h3>
           {data.best_topics.map((t) => (
             <HBar key={t.topic} label={`${t.topic} (${t.posts})`} value={t.avg_engagement} max={platMax} />

@@ -35,6 +35,7 @@ class ContentBrief(BaseModel):
     target_audience: str = ""
     objective: str = "Engage and inform"
     platform: str = "LinkedIn"
+    format: str = "Insight + example + takeaway"
     core_message: str = ""
     angle: str = ""
     hook_strategy: str = "One sharp, specific opening line"

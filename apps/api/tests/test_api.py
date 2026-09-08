@@ -198,14 +198,25 @@ def test_content_lifecycle_and_newsletter(client):
     gen = client.post("/api/content/generate",
                       json={"opportunity_id": opps[0]["id"], "platform": "Newsletter"}).json()
     assert "Subject:" in gen["content"]["body"]
+    assert gen["brief"].get("format") in ("", "Insight + example + takeaway")
     cid = client.post("/api/content/save", json={
         "opportunity_id": opps[0]["id"], "platform": "Newsletter",
-        "title": gen["content"]["title"], "body": gen["content"]["body"]}).json()["content"]["id"]
+        "title": gen["content"]["title"], "body": gen["content"]["body"],
+        "format": "Tutorial"}).json()["content"]["id"]
+    row = client.get(f"/api/content/{cid}").json()
+    assert row["format"] == "Tutorial"
+    by_format = client.get("/api/analytics").json()["by_format"]
+    assert any(f.get("format") == "Tutorial" for f in by_format)
     dup = client.post(f"/api/content/{cid}/duplicate").json()["content"]
     assert dup["id"] != cid and dup["status"] == "draft"
     assert client.delete(f"/api/content/{cid}").json()["ok"] is True
     assert client.get(f"/api/content/{cid}").status_code == 400
     assert client.delete("/api/content/9999").status_code == 400
+    v2 = client.post("/api/content/revise", json={"content_id": dup["id"]}).json()
+    assert v2["version"] == 2
+    rst = client.post(f"/api/content/{dup['id']}/restore", json={"version": 1}).json()
+    assert rst["version"] == 3 and rst["restored_from"] == 1
+    assert client.post(f"/api/content/{dup['id']}/restore", json={"version": 99}).status_code == 400
 
 
 def test_calendar_edit_and_research_list(client):

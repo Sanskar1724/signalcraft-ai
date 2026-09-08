@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS content (
     hook TEXT NOT NULL DEFAULT '',
     cta TEXT NOT NULL DEFAULT '',
     quality_score REAL NOT NULL DEFAULT 0,
+    format TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -303,7 +304,8 @@ EXTRA_COLUMNS: dict[str, list[str]] = {
         "user_relevance REAL NOT NULL DEFAULT 0", "audience_fit REAL NOT NULL DEFAULT 0",
         "freshness REAL NOT NULL DEFAULT 0", "competition REAL NOT NULL DEFAULT 0",
     ],
-    "content": ["uuid TEXT NOT NULL DEFAULT ''", "status TEXT NOT NULL DEFAULT 'draft'"],
+    "content": ["uuid TEXT NOT NULL DEFAULT ''", "status TEXT NOT NULL DEFAULT 'draft'",
+                "format TEXT NOT NULL DEFAULT ''"],
     "content_versions": ["uuid TEXT NOT NULL DEFAULT ''", "brief TEXT NOT NULL DEFAULT '{}'"],
     "content_performance": ["uuid TEXT NOT NULL DEFAULT ''", "performance_score REAL NOT NULL DEFAULT 0"],
     "agent_memories": ["uuid TEXT NOT NULL DEFAULT ''"],

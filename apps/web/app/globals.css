@@ -256,6 +256,8 @@ details.trace summary { cursor: pointer; color: var(--muted); }
   50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
 }
 .stamp { font-size: 11px; color: var(--muted); margin-top: 6px; }
+ins.diff { background: rgba(52,211,153,.22); color: #a7f3d0; text-decoration: none; border-radius: 3px; padding: 0 2px; }
+del.diff { background: rgba(248,113,113,.2); color: #fecaca; border-radius: 3px; padding: 0 2px; }
 
 /* Toast */
 .toasts { position: fixed; bottom: 22px; right: 22px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }

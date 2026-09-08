@@ -14,8 +14,8 @@ from ..repositories.content import get_content_detail
 from ..schemas.schemas import (CalendarUpdate, ChatIn, CritiqueIn, GenerateIn,
                                ImproveIn, LoginIn, MemoryIn, OnboardingStep,
                                PasswordIn, PerformanceIn, PreferencesUpdate,
-                               ProfileUpdate, ResearchRun, ReviseIn, SaveIn,
-                               ScheduleIn, SignupIn, StatusIn)
+                               ProfileUpdate, ResearchRun, RestoreIn, ReviseIn,
+                               SaveIn, ScheduleIn, SignupIn, StatusIn)
 from ..services.services import (agent, content, context, identity, onboarding,
                                  opportunity, preferences, profile, research,
                                  trend)
@@ -174,7 +174,8 @@ async def get_research(query: str = "", limit: int = 30, offset: int = 0,
 async def post_generate(body: GenerateIn, user_id: int = Depends(get_user_id)) -> dict:
     return content.generate(body.opportunity_id, body.platform, user_id,
                             tone=body.tone, length=body.length,
-                            style_match=body.style_match, grounded=body.grounded)
+                            style_match=body.style_match, grounded=body.grounded,
+                            format=body.format)
 
 
 @router.post("/content/critique")
@@ -196,7 +197,13 @@ async def post_improve_preview(body: ImproveIn) -> dict:
 async def post_save(body: SaveIn, user_id: int = Depends(get_user_id)) -> dict:
     """Explicit Save (§13): only this creates a permanent library record."""
     return content.save(user_id, body.opportunity_id, body.platform, body.title,
-                        body.body, body.hook, body.cta, body.brief)
+                        body.body, body.hook, body.cta, body.brief, body.format)
+
+
+@router.post("/content/{content_id}/restore")
+async def post_restore(content_id: int, body: RestoreIn, user_id: int = Depends(get_user_id)) -> dict:
+    """Restore a version by copying it forward (history stays append-only)."""
+    return content.restore(user_id, content_id, body.version)
 
 
 @router.put("/opportunities/{opportunity_id}/dismiss")

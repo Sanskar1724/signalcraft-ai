@@ -37,6 +37,7 @@ class GenerateIn(BaseModel):
     length: str = "medium"
     style_match: bool = True
     grounded: bool = True
+    format: str | None = None
 
 
 class CritiqueIn(BaseModel):
@@ -47,6 +48,10 @@ class CritiqueIn(BaseModel):
 
 class ReviseIn(BaseModel):
     content_id: int
+
+
+class RestoreIn(BaseModel):
+    version: int = Field(ge=1)
 
 
 class ImproveIn(BaseModel):
@@ -62,6 +67,7 @@ class SaveIn(BaseModel):
     hook: str = ""
     cta: str = ""
     brief: dict = Field(default_factory=dict)
+    format: str = ""
 
 
 class StatusIn(BaseModel):
