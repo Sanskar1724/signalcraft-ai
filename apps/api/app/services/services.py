@@ -118,7 +118,11 @@ class research:
         return jobs.run_refresh(user_id=user_id, limit=limit, use_live=use_live)
 
     @staticmethod
-    def recent(user_id: int = 1, limit: int = 30, offset: int = 0) -> list[dict]:
+    def documents(user_id: int = 1, query: str = "", limit: int = 30,
+                  offset: int = 0) -> list[dict]:
+        from signalcraft.research import list_recent, search
+        if query:
+            return search(user_id, query, limit, offset)
         return list_recent(user_id, limit, offset)
 
 
@@ -177,6 +181,16 @@ class content:
         from signalcraft.content import save_draft
         return save_draft(user_id, platform, title, body, hook, cta,
                           opportunity_id, brief)
+
+    @staticmethod
+    def remove(user_id: int = 1, content_id: int = 0) -> dict:
+        from signalcraft.content import remove_content
+        return remove_content(content_id, user_id)
+
+    @staticmethod
+    def duplicate(user_id: int = 1, content_id: int = 0) -> dict:
+        from signalcraft.content import duplicate_content
+        return duplicate_content(content_id, user_id)
 
     @staticmethod
     def critique(body: str, platform: str = "LinkedIn", topic: str = "") -> dict:
@@ -267,13 +281,16 @@ class content:
 class agent:
     @staticmethod
     def chat(message: str, user_id: int = 1) -> dict:
-        from signalcraft.agent import run
+        from signalcraft.agent import list_opportunities_for_actions, run
         from signalcraft.contracts import AgentResult
         from ..api.deps import current_request_id
         out = run(message, user_id=user_id)
         out["request_id"] = current_request_id()
-        return AgentResult(**{k: out.get(k) for k in
-                              ("answer", "intent", "request_id", "trace")}).model_dump()
+        out["actions"] = list_opportunities_for_actions(out.get("intent", ""), user_id)
+        checked = AgentResult(**{k: out.get(k) for k in
+                                 ("answer", "intent", "request_id", "trace")}).model_dump()
+        checked["actions"] = out["actions"]
+        return checked
 
     @staticmethod
     def learn(user_id: int = 1) -> dict:
@@ -291,3 +308,11 @@ class agent:
     @staticmethod
     def schedule(user_id: int = 1, **fields) -> dict:
         return calendar.schedule(user_id, **fields)
+
+    @staticmethod
+    def reschedule(user_id: int = 1, entry_id: int = 0, **fields) -> dict:
+        return calendar.update_entry(entry_id, user_id, **fields)
+
+    @staticmethod
+    def duplicate_entry(user_id: int = 1, entry_id: int = 0) -> dict:
+        return calendar.duplicate_entry(entry_id, user_id)

@@ -110,3 +110,4 @@ class ChatOut(BaseModel):
     intent: str
     request_id: str = ""
     trace: dict = {}
+    actions: list[dict] = []

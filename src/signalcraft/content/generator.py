@@ -18,7 +18,7 @@ from ..memory import recall
 from ..observability import Trace
 from ..profiles import get_profile
 from .critic import critique
-from .platforms import format_blog, format_linkedin, format_x
+from .platforms import format_blog, format_linkedin, format_newsletter, format_x
 from .sanitize import scrub
 
 MAX_BODY = 6000
@@ -156,7 +156,8 @@ def generate_content(opportunity_id: int, platform: str = "LinkedIn",
     trace.add("strategy", core[:200])
 
     angle = scrub(opp.get("angle", ""))
-    fmt = {"LinkedIn": format_linkedin, "X": format_x, "Blog": format_blog}.get(platform, format_linkedin)
+    fmt = {"LinkedIn": format_linkedin, "X": format_x, "Blog": format_blog,
+           "Newsletter": format_newsletter}.get(platform, format_linkedin)
     hook, body, cta = fmt(opp["topic"], angle, core, profile.tone)
     body = scrub(body[:MAX_BODY])
     trace.add("draft", {"hook": hook, "chars": len(body)})
@@ -282,8 +283,7 @@ def _store(user_id: int, opportunity_id: int | None, platform: str, hook: str,
         conn.close()
 
 
-def save_draft(user_id: int, platform: str, title: str, body: str,
-               hook: str = "", cta: str = "", opportunity_id: int | None = None,
+def save_draft(user_id: int, platform: str, title: str, body: str,               hook: str = "", cta: str = "", opportunity_id: int | None = None,
                brief: dict | None = None) -> dict:
     """Explicit Save (§13): validate + dedupe + persist a preview as v1 draft."""
     import json as _json
@@ -301,6 +301,55 @@ def save_draft(user_id: int, platform: str, title: str, body: str,
     try:
         row = conn.execute("SELECT * FROM content WHERE id=?", (cid,)).fetchone()
         return {"content": dict(row), "critique": result}
+    finally:
+        conn.close()
+
+
+def remove_content(content_id: int, user_id: int = 1) -> dict:
+    """Delete a content item (versions + performance cascade). Ownership-checked."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM content WHERE id=? AND user_id=?",
+                           (content_id, user_id)).fetchone()
+        if row is None:
+            raise ValueError(f"content {content_id} not found")
+        conn.execute("DELETE FROM content WHERE id=?", (content_id,))
+        conn.commit()
+        return {"ok": True, "content_id": content_id}
+    finally:
+        conn.close()
+
+
+def duplicate_content(content_id: int, user_id: int = 1) -> dict:
+    """Copy a content item with its version history as a fresh draft."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM content WHERE id=? AND user_id=?",
+                           (content_id, user_id)).fetchone()
+        if row is None:
+            raise ValueError(f"content {content_id} not found")
+        src = dict(row)
+        cur = conn.execute(
+            "INSERT INTO content (uuid, user_id, opportunity_id, platform, title, body,"
+            " hook, cta, quality_score, status)"
+            " VALUES (?,?,?,?,?,?,?,?,?,'draft')",
+            (new_uuid(), user_id, src["opportunity_id"], src["platform"],
+             (src["title"] or "")[:190] + " (copy)", src["body"], src["hook"],
+             src["cta"], src["quality_score"]),
+        )
+        nid = cur.lastrowid
+        for v in conn.execute("SELECT * FROM content_versions WHERE content_id=? ORDER BY version",
+                              (content_id,)).fetchall():
+            d = dict(v)
+            conn.execute(
+                "INSERT INTO content_versions (uuid, content_id, version, brief, body,"
+                " critique, score) VALUES (?,?,?,?,?,?,?)",
+                (new_uuid(), nid, d["version"], d["brief"], d["body"],
+                 d["critique"], d["score"]),
+            )
+        conn.commit()
+        out = conn.execute("SELECT * FROM content WHERE id=?", (nid,)).fetchone()
+        return {"content": dict(out)}
     finally:
         conn.close()
 

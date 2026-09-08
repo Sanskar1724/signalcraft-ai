@@ -11,10 +11,11 @@ from ..core.config import API_PREFIX
 from ..models.models import (ChatOut, ContentDetail, ContentItem, Opportunity,
                              Performance, ProfileOut, TrendSignal)
 from ..repositories.content import get_content_detail
-from ..schemas.schemas import (ChatIn, CritiqueIn, GenerateIn, ImproveIn, LoginIn,
-                               OnboardingStep, PasswordIn, PerformanceIn,
-                               PreferencesUpdate, ProfileUpdate, ResearchRun,
-                               ReviseIn, SaveIn, ScheduleIn, SignupIn, StatusIn)
+from ..schemas.schemas import (CalendarUpdate, ChatIn, CritiqueIn, GenerateIn,
+                               ImproveIn, LoginIn, OnboardingStep, PasswordIn,
+                               PerformanceIn, PreferencesUpdate, ProfileUpdate,
+                               ResearchRun, ReviseIn, SaveIn, ScheduleIn,
+                               SignupIn, StatusIn)
 from ..services.services import (agent, content, context, identity, onboarding,
                                  opportunity, preferences, profile, research,
                                  trend)
@@ -163,6 +164,12 @@ async def post_research(body: ResearchRun, user_id: int = Depends(get_user_id)) 
     return research.run(body.query, body.limit, body.use_live, user_id)
 
 
+@router.get("/research")
+async def get_research(query: str = "", limit: int = 30, offset: int = 0,
+                       user_id: int = Depends(get_user_id)) -> dict:
+    return {"documents": research.documents(user_id, query, limit, offset)}
+
+
 @router.post("/content/generate")
 async def post_generate(body: GenerateIn, user_id: int = Depends(get_user_id)) -> dict:
     return content.generate(body.opportunity_id, body.platform, user_id,
@@ -208,6 +215,16 @@ async def get_content_one(content_id: int, user_id: int = Depends(get_user_id)) 
     return get_content_detail(content_id, user_id)
 
 
+@router.delete("/content/{content_id}")
+async def delete_content(content_id: int, user_id: int = Depends(get_user_id)) -> dict:
+    return content.remove(user_id, content_id)
+
+
+@router.post("/content/{content_id}/duplicate")
+async def duplicate_content(content_id: int, user_id: int = Depends(get_user_id)) -> dict:
+    return content.duplicate(user_id, content_id)
+
+
 @router.put("/content/{content_id}/status")
 async def put_content_status(content_id: int, body: StatusIn,
                              user_id: int = Depends(get_user_id)) -> dict:
@@ -234,6 +251,7 @@ async def get_insights(user_id: int = Depends(get_user_id)) -> dict:
 async def post_chat(body: ChatIn, user_id: int = Depends(get_user_id)) -> dict:
     out = agent.chat(body.message, user_id)
     return {"answer": out["answer"], "intent": out["intent"], "trace": out.get("trace", {}),
+            "actions": out.get("actions", []),
             "request_id": out.get("request_id", current_request_id())}
 
 
@@ -257,6 +275,17 @@ async def post_calendar(body: ScheduleIn, user_id: int = Depends(get_user_id)) -
     return agent.schedule(user_id, platform=body.platform,
                           scheduled_for=body.scheduled_for,
                           content_id=body.content_id, notes=body.notes)
+
+
+@router.put("/calendar/{entry_id}")
+async def put_calendar(entry_id: int, body: CalendarUpdate,
+                       user_id: int = Depends(get_user_id)) -> dict:
+    return agent.reschedule(user_id, entry_id, **body.model_dump(exclude_none=True))
+
+
+@router.post("/calendar/{entry_id}/duplicate")
+async def duplicate_calendar(entry_id: int, user_id: int = Depends(get_user_id)) -> dict:
+    return agent.duplicate_entry(user_id, entry_id)
 
 
 @router.get("/debug/llm")

@@ -27,6 +27,12 @@ PLATFORM_RULES: dict[str, dict] = {
         "default_cta": "Subscribe for the next deep dive.",
         "sections": ["Why now", "How it works", "What to do next"],
     },
+    "Newsletter": {
+        "structure": ["subject", "greeting", "insight", "example", "takeaway", "cta"],
+        "min_words": 60,
+        "max_words": 2000,
+        "default_cta": "Reply and tell me what you want covered next.",
+    },
 }
 
 __all__ = ["PLATFORM_RULES", "get_rules"]

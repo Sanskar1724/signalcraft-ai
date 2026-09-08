@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from .rules import get_rules
 
-
 def format_linkedin(topic: str, angle: str, body_core: str, tone: str, cta: str = "") -> tuple[str, str, str]:
     rules = get_rules("LinkedIn")
     cta = cta or rules["default_cta"]
@@ -34,3 +33,15 @@ def format_blog(topic: str, angle: str, body_core: str, tone: str) -> tuple[str,
         f"## What to do next\nTry one small experiment and measure the result.\n"
     )
     return title, body, rules["default_cta"]
+
+
+def format_newsletter(topic: str, angle: str, body_core: str, tone: str) -> tuple[str, str, str]:
+    rules = get_rules("Newsletter")
+    subject = f"{topic}: what changed this week"
+    body = (
+        f"Subject: {subject}\n\nHi —\n\n{body_core.strip()}\n\n"
+        f"Why this matters: {angle.strip()}\n\n"
+        f"One thing to try: apply it to a single small task this week.\n\n"
+        f"{rules['default_cta']}"
+    )
+    return subject, body, rules["default_cta"]

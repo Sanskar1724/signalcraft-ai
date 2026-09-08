@@ -17,7 +17,25 @@ from .profiles import get_profile
 from .research import list_recent, search
 from .security import MAX_TOOL_CALLS, Budget, check_rate_limit, validate_request
 
-__all__ = ["classify_intent", "run"]
+__all__ = ["classify_intent", "run", "list_opportunities_for_actions"]
+
+
+def list_opportunities_for_actions(intent: str, user_id: int = 1) -> list[dict]:
+    """Action buttons for chat answers (§15): real deep links, never decorative."""
+    if intent in {"trends", "ideas", "recommend", "why", "angle"}:
+        top = list_opportunities(user_id)[:1]
+        if not top:
+            return [{"label": "Explore trends", "href": "/app/trends"}]
+        oid = top[0]["id"]
+        return [
+            {"label": "Create content", "href": f"/app/create?opp={oid}"},
+            {"label": "View opportunity", "href": "/app/opportunities"},
+        ]
+    if intent in {"transform_linkedin", "transform_x", "transform_blog"}:
+        return [{"label": "Open library", "href": "/app/library"}]
+    if intent == "analyze":
+        return [{"label": "View analytics", "href": "/app/analytics"}]
+    return []
 
 
 def classify_intent(text: str) -> str:

@@ -90,6 +90,14 @@ class ScheduleIn(BaseModel):
     notes: str = ""
 
 
+class CalendarUpdate(BaseModel):
+    platform: str | None = None
+    scheduled_for: str | None = None
+    status: str | None = None
+    notes: str | None = None
+    content_id: int | None = None
+
+
 class SignupIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: str = Field(min_length=3, max_length=200)

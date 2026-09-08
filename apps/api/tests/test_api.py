@@ -94,6 +94,7 @@ def test_full_flow(client):
     assert "Observed fact" in chat["answer"] and chat["request_id"]
     assert chat["trace"]["steps"]
     assert "user says" not in chat["answer"].lower()
+    assert chat["actions"] and chat["actions"][0]["href"].startswith("/app/")
     assert client.post("/api/agent/learn").json()["learned"]
     assert client.get("/api/debug/llm").json()["usage"]
     assert client.put(f"/api/opportunities/{opps[0]['id']}/dismiss").json()["ok"] is True
@@ -189,3 +190,36 @@ def test_google_boundary_and_status_flow(client, monkeypatch):
         "hook": gen["content"]["hook"], "brief": gen["brief"]}).json()["content"]["id"]
     assert client.put(f"/api/content/{cid}/status", json={"status": "published"}).json()["status"] == "published"
     assert client.put(f"/api/content/{cid}/status", json={"status": "nope"}).status_code == 400
+
+
+def test_content_lifecycle_and_newsletter(client):
+    client.post("/api/research", json={"limit": 5, "use_live": False})
+    opps = client.get("/api/opportunities", params={"refresh": True}).json()
+    gen = client.post("/api/content/generate",
+                      json={"opportunity_id": opps[0]["id"], "platform": "Newsletter"}).json()
+    assert "Subject:" in gen["content"]["body"]
+    cid = client.post("/api/content/save", json={
+        "opportunity_id": opps[0]["id"], "platform": "Newsletter",
+        "title": gen["content"]["title"], "body": gen["content"]["body"]}).json()["content"]["id"]
+    dup = client.post(f"/api/content/{cid}/duplicate").json()["content"]
+    assert dup["id"] != cid and dup["status"] == "draft"
+    assert client.delete(f"/api/content/{cid}").json()["ok"] is True
+    assert client.get(f"/api/content/{cid}").status_code == 400
+    assert client.delete("/api/content/9999").status_code == 400
+
+
+def test_calendar_edit_and_research_list(client):
+    client.post("/api/research", json={"limit": 5, "use_live": False})
+    created = client.post("/api/calendar", json={
+        "platform": "LinkedIn", "scheduled_for": "2026-10-01 10:00",
+        "notes": "launch post"}).json()
+    eid = created["id"]
+    upd = client.put(f"/api/calendar/{eid}", json={"status": "scheduled"}).json()
+    assert upd["status"] == "scheduled"
+    assert client.put(f"/api/calendar/{eid}", json={"status": "bogus"}).status_code == 400
+    dup = client.post(f"/api/calendar/{eid}/duplicate").json()
+    assert dup["id"] != eid and dup["status"] == "draft"
+    docs = client.get("/api/research", params={"limit": 5}).json()["documents"]
+    assert len(docs) >= 1 and docs[0]["title"]
+    found = client.get("/api/research", params={"query": "zz-no-such-topic"}).json()["documents"]
+    assert found == []
