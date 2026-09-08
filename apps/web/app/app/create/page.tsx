@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, type Critique, type GenerateResult, type Opportunity } from "../../../lib/api";
 import { toast } from "../../../components/fx";
-import { Card, CopyButton, Empty, Pill, Quality, Tabs, Toggle, useApi } from "../../../components/ui";
+import { Card, CopyButton, Empty, Pill, Quality, Toggle, useApi } from "../../../components/ui";
 
 const PLATS = ["LinkedIn", "X", "Blog", "Newsletter"];
 const FORMATS = ["Insight + example + takeaway", "Tutorial", "Opinion", "Story", "News analysis"];
@@ -44,7 +45,7 @@ function CreateInner() {
   const prefs = useApi(() => api.getPreferences());
   const params = useSearchParams();
   const [oppId, setOppId] = useState(0);
-  const [platform, setPlatform] = useState("LinkedIn");
+  const [platforms, setPlatforms] = useState<string[]>([...PLATS]);
   const [tone, setTone] = useState("");
   const [format, setFormat] = useState(FORMATS[0]);
   const [length, setLength] = useState("medium");
@@ -120,8 +121,8 @@ function CreateInner() {
   return (
     <>
       <h1>Create</h1>
-      <p className="sub">Opportunity → voice → draft → critique → improve → preview → save.</p>
-      <div className="workgrid">
+      <p className="sub">Strategy → editor → critic. Generate previews; only Save persists.</p>
+      <div className="workgrid3">
         <div>
           <Card glow>
             {opp && (
@@ -162,36 +163,67 @@ function CreateInner() {
                 </select>
               </label>
             </div>
-            <div style={{ margin: "10px 0" }}>
-              <Tabs tabs={PLATS} active={platform} onChange={setPlatform} />
+            <p className="lbl">Platforms</p>
+            <div className="chips">
+              {PLATS.map((p) => {
+                const on = platforms.includes(p);
+                return (
+                  <button key={p} type="button" aria-pressed={on}
+                    className={"chip" + (on ? " on" : "")}
+                    onClick={() => setPlatforms(on ? platforms.filter((x) => x !== p) : [...platforms, p])}>
+                    <span className="box" aria-hidden>✓</span>
+                    <span>{p}</span>
+                  </button>
+                );
+              })}
             </div>
             <div className="row">
               <Toggle checked={styleMatch} onChange={setStyleMatch} label="Match my best style" />
               <Toggle checked={grounded} onChange={setGrounded} label="Ground in research" />
             </div>
             <div className="row" style={{ marginTop: 10 }}>
-              <button className="btn" onClick={() => generate([platform])} disabled={busy || !oppId}>
-                {busy ? <><span className="spin" />Working…</> : "Generate"}
-              </button>
-              <button className="btn ghost" onClick={() => generate(PLATS)} disabled={busy || !oppId}>
-                Generate all 3
+              <button className="btn" onClick={() => generate(platforms)} disabled={busy || !oppId || !platforms.length}>
+                {busy ? <><span className="spin" />Working…</> : `Generate (${platforms.length})`}
               </button>
             </div>
             {error && <p className="error">Generation failed. No content was saved. ({error})</p>}
           </Card>
           {!opps.data?.length && !opps.busy && <Empty text="Generate opportunities first." />}
         </div>
-        <Card>
-          <h3>Session</h3>
-          <p className="muted">{Object.keys(drafts).length} preview(s), {Object.values(drafts).filter((d) => d.savedId).length} saved.</p>
-          <p className="muted">Previews live only here until you Save.</p>
-        </Card>
+        <div>
+          {Object.keys(drafts).length === 0 && (
+            <Empty text="No previews yet — pick platforms and Generate. Nothing is saved until you press Save." />
+          )}
+          {Object.entries(drafts).map(([plat, d]) => (
+            <DraftCard key={plat} plat={plat} d={d} busy={busy} format={format}
+              onBody={(body) => setDrafts({ ...drafts, [plat]: { ...d, body } })}
+              onImprove={() => improve(plat)} onSave={() => save(plat)} />
+          ))}
+        </div>
+        <div>
+          <Card>
+            <h3>Session</h3>
+            <p className="muted">{Object.keys(drafts).length} preview(s), {Object.values(drafts).filter((d) => d.savedId).length} saved.</p>
+            <p className="muted">Previews live only here until you Save.</p>
+          </Card>
+          {Object.entries(drafts).map(([plat, d]) => (
+            <Card key={plat}>
+              <div className="row" style={{ alignItems: "center" }}>
+                <Pill kind={plat}>{plat}</Pill>
+                <Quality score={d.critique.overall} />
+              </div>
+              {(d.critique.issues ?? []).slice(0, 3).map((issue, i) => (
+                <p key={i} className="muted" style={{ margin: "4px 0", fontSize: 12.5 }}>· {issue}</p>
+              ))}
+              {d.savedId && (
+                <p style={{ marginBottom: 0 }}>
+                  <Link href="/app/library" style={{ fontSize: 12.5 }}>Saved #{d.savedId} — view in Library →</Link>
+                </p>
+              )}
+            </Card>
+          ))}
+        </div>
       </div>
-      {Object.entries(drafts).map(([plat, d]) => (
-        <DraftCard key={plat} plat={plat} d={d} busy={busy} format={format}
-          onBody={(body) => setDrafts({ ...drafts, [plat]: { ...d, body } })}
-          onImprove={() => improve(plat)} onSave={() => save(plat)} />
-      ))}
     </>
   );
 }
@@ -203,6 +235,28 @@ function DraftCard({ plat, d, busy, format, onBody, onImprove, onSave }: {
   const wc = words(d.body);
   const read = useMemo(() => readability(d.body), [d.body]);
   const fit = d.critique.scores.platform_fit ?? 0;
+  const area = useRef<HTMLTextAreaElement>(null);
+
+  function wrap(before: string, after = "") {
+    const el = area.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e, value } = el;
+    const sel = value.slice(s, e) || "text";
+    onBody(value.slice(0, s) + before + sel + after + value.slice(e));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(s + before.length, s + before.length + sel.length);
+    });
+  }
+
+  function bullet() {
+    const el = area.current;
+    if (!el) return;
+    const { selectionStart: s, value } = el;
+    const lineStart = value.lastIndexOf("\n", s - 1) + 1;
+    onBody(value.slice(0, lineStart) + "- " + value.slice(lineStart));
+  }
+
   return (
     <Card glow={!d.savedId}>
       <div className="row" style={{ alignItems: "center" }}>
@@ -214,13 +268,19 @@ function DraftCard({ plat, d, busy, format, onBody, onImprove, onSave }: {
         {!d.savedId && <button className="btn small" onClick={onSave} disabled={busy}>Save</button>}
         <CopyButton text={d.body} />
       </div>
+      <div className="row" style={{ marginTop: 8 }}>
+        <span className="lbl">Format</span>
+        <button className="btn ghost small" onClick={() => wrap("**", "**")}><b>B</b></button>
+        <button className="btn ghost small" onClick={() => wrap("*", "*")}><i>I</i></button>
+        <button className="btn ghost small" onClick={bullet}>• List</button>
+      </div>
       <div className="dims">
         <span>{wc} words · {d.body.length} chars</span>
         <span>Readability {read}/100</span>
         <span>Platform fit {fit}/10</span>
         <span>Format: {format}</span>
       </div>
-      <textarea value={d.body} onChange={(e) => onBody(e.target.value)} rows={12}
+      <textarea ref={area} value={d.body} onChange={(e) => onBody(e.target.value)} rows={12}
         aria-label={`${plat} draft editor`} style={{ marginTop: 10, fontSize: 14, lineHeight: 1.6 }} />
       <p className="muted">{d.critique.suggestion}</p>
       <details className="trace">

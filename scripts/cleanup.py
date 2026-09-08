@@ -26,8 +26,8 @@ def scan() -> dict[str, list[int]]:
         bad_trends = [r["id"] for r in conn.execute("SELECT id, topic FROM trend_signals").fetchall()
                       if looks_like_url_junk(r["topic"] or "")]
         bad_opps = [r["id"] for r in conn.execute(
-            "SELECT id, topic FROM content_opportunities").fetchall()
-            if looks_like_url_junk(r["topic"] or "")]
+            "SELECT id, topic, angle FROM content_opportunities").fetchall()
+            if looks_like_url_junk(r["topic"] or "") or leak_found(r["angle"] or "")]
         bad_content = [r["id"] for r in conn.execute("SELECT id, body FROM content").fetchall()
                        if leak_found(r["body"] or "")]
         return {"trend_signals": bad_trends, "content_opportunities": bad_opps,

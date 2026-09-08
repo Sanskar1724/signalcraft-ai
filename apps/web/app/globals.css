@@ -377,6 +377,10 @@ del.diff { background: rgba(248,113,113,.2); color: #fecaca; border-radius: 3px;
 
 /* Workspace + calendar */
 .workgrid { display: grid; grid-template-columns: 1fr 290px; gap: 12px; align-items: start; }
+.workgrid3 { display: grid; grid-template-columns: 300px minmax(0, 1fr) 290px; gap: 12px; align-items: start; }
+@media (max-width: 1200px) {
+  .workgrid3 { grid-template-columns: 1fr; }
+}
 .calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .calday { min-height: 86px; border: 1px solid var(--border); border-radius: 10px; padding: 6px; font-size: 11.5px; background: var(--glass); overflow: hidden; }
 .calday.dim { opacity: .35; }

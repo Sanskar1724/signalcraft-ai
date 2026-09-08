@@ -9,7 +9,7 @@ import re
 __all__ = ["LEAK_PATTERNS", "leak_found", "scrub"]
 
 LEAK_PATTERNS = [
-    "mock_prefix", "user_says", "need_to", "probably", "creator_niche",
+    "mock_prefix", "mock_scaffold", "user_says", "need_to", "probably", "creator_niche",
     "content_brief", "system_instructions", "internal_reasoning",
     "as_an_ai", "training_data", "prompt_context", "thinking_process",
     "analyze_request", "evaluate_constraint", "issues_header", "improve_header",
@@ -18,6 +18,7 @@ LEAK_PATTERNS = [
 
 _REGEXES = {
     "mock_prefix": re.compile(r"\[(mock|debug|system)[^\]]*\]", re.IGNORECASE),
+    "mock_scaffold": re.compile(r"structure: a concrete hook", re.IGNORECASE),
     "user_says": re.compile(r"the user (says|asks|wants|requested)", re.IGNORECASE),
     "need_to": re.compile(r"\bwe need to\b", re.IGNORECASE),
     "probably": re.compile(r"\bprobably (they|you|the user)\b", re.IGNORECASE),
@@ -55,7 +56,7 @@ def scrub(text: str) -> str:
     if not text:
         return ""
     out = _REGEXES["mock_prefix"].sub("", text)
-    drop = ("user_says", "need_to", "probably", "creator_niche",
+    drop = ("mock_scaffold", "user_says", "need_to", "probably", "creator_niche",
             "content_brief", "system_instructions", "internal_reasoning",
             "as_an_ai", "training_data", "prompt_context", "thinking_process",
             "analyze_request", "evaluate_constraint", "issues_header",
