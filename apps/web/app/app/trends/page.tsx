@@ -8,6 +8,7 @@ import { Card, Empty, Loading, ScoreBar, Tabs, useApi } from "../../../component
 export default function TrendingPage() {
   const [tab, setTab] = useState("for_you");
   const [query, setQuery] = useState("");
+  const [metric, setMetric] = useState("trend_score");
   const [sel, setSel] = useState<TrendSignal | null>(null);
   const { data, error, busy, reload } = useApi(() => api.trends(12, tab), [tab]);
   const opps = useApi(() => api.opportunities());
@@ -17,7 +18,8 @@ export default function TrendingPage() {
     <p><button className="btn small" onClick={reload}>Retry</button></p></div></>);
 
   const rows = (data ?? [])
-    .filter((t) => !query || t.topic.toLowerCase().includes(query.toLowerCase()));
+    .filter((t) => !query || t.topic.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => (b[metric as keyof TrendSignal] as number) - (a[metric as keyof TrendSignal] as number));
 
   return (
     <>
@@ -26,6 +28,10 @@ export default function TrendingPage() {
         Scored for your niche — switch views to slice by momentum or recency.
       </p>
       <Tabs tabs={["for_you", "rising", "latest"]} active={tab} onChange={setTab} />
+      <div className="row" style={{ marginTop: 8 }}>
+        <span className="lbl">Visualize</span>
+        <Tabs tabs={["trend_score", "growth", "freshness", "source_momentum", "relevance"]} active={metric} onChange={setMetric} />
+      </div>
       <div className="row" style={{ marginTop: 10 }}>
         <div style={{ flex: 2, minWidth: 200 }}>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter topics…" aria-label="Filter topics" />
@@ -36,8 +42,8 @@ export default function TrendingPage() {
       {rows.map((t) => (
         <Card key={t.topic} lift>
           <div style={{ cursor: "pointer" }} onClick={() => setSel(t)}>
-            <h3>{t.topic} — {t.trend_score} <span className="muted">· {direction(t.growth)}</span></h3>
-            <ScoreBar value={t.trend_score} />
+            <h3>{t.topic} — {metric === "trend_score" ? t.trend_score : Math.round((t[metric as keyof TrendSignal] as number) * 100)} <span className="muted">· {direction(t.growth)}</span></h3>
+            <ScoreBar value={(t[metric as keyof TrendSignal] as number) * (metric === "trend_score" ? 1 : 100)} />
           <div className="dims">
             <span>Growth {t.growth}</span>
             <span>Freshness {t.freshness}</span>

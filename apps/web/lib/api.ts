@@ -221,7 +221,7 @@ export interface AnalyticsSummary {
   weak_topics: { topic: string; posts: number; avg_engagement: number }[];
   by_platform: { platform: string; posts: number; avg_engagement: number }[];
   top_content: { id: number; title: string; performance_score: number }[];
-  rows: { id: number; title: string; platform: string; impressions: number; engagement_rate: number; performance_score: number; recorded_at: string }[];
+  rows: { id: number; title: string; platform: string; impressions: number; likes: number; comments: number; shares: number; reach: number; engagement_rate: number; performance_score: number; recorded_at: string }[];
 }
 
 export interface ChatReply {

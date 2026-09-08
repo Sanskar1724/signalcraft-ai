@@ -73,6 +73,22 @@ export default function CalendarPage() {
       <p className="sub">Plan what ships, where, and when. Scheduling is real; publishing stays manual (§58).</p>
       <Card glow>
         <div className="row">
+          <label className="field" style={{ flex: 2 }}>From opportunity (optional)
+            <select value="" onChange={(e) => {
+              const o = (opps.data ?? []).find((x) => String(x.id) === e.target.value);
+              if (o) {
+                setPlatform(o.platform.split(" ")[0]);
+                setNotes(`${o.topic} — ${o.angle.slice(0, 120)}`);
+              }
+            }}>
+              <option value="">Manual entry…</option>
+              {(opps.data ?? []).slice(0, 10).map((o) => (
+                <option key={o.id} value={o.id}>{o.topic} ({o.score})</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="row">
           <label className="field" style={{ minWidth: 140, flex: 0 }}>Platform
             <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
               <option>LinkedIn</option>

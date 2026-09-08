@@ -21,7 +21,9 @@ export default function AnalyticsPage() {
     return Number.isNaN(t) || t >= cutoff;
   });
   const rows = [...inRange].reverse();
-  const tot = (k: "impressions") => inRange.reduce((a, r) => a + (r[k] || 0), 0);
+  const tot = (k: "impressions" | "likes" | "comments" | "shares") =>
+    inRange.reduce((a, r) => a + (r[k] || 0), 0);
+  const engagement = tot("likes") + tot("comments") + tot("shares");
   const avg = inRange.length ? inRange.reduce((a, r) => a + r.engagement_rate, 0) / inRange.length : 0;
   const platMax = Math.max(...data.by_platform.map((x) => x.avg_engagement), 1);
   const weak = [...inRange].sort((a, b) => a.engagement_rate - b.engagement_rate).slice(0, 5);
@@ -36,7 +38,12 @@ export default function AnalyticsPage() {
       <div className="grid3" style={{ marginTop: 12 }}>
         <Stat hot value={String(inRange.length)} label="Posts in range" />
         <Stat value={String(tot("impressions"))} label="Impressions" />
+        <Stat value={String(engagement)} label="Likes + comments + shares" />
+      </div>
+      <div className="grid3" style={{ marginTop: 12 }}>
         <Stat value={`${avg.toFixed(1)}%`} label="Avg engagement rate" />
+        <Stat value={data.by_platform[0]?.platform ?? "—"} label="Best platform" />
+        <Stat value={data.best_topics[0]?.topic ?? "—"} label="Best topic" />
       </div>
       <div className="grid2" style={{ marginTop: 12 }}>
         <Card>
@@ -71,8 +78,37 @@ export default function AnalyticsPage() {
           {!weak.length && <p className="muted">Nothing weak in range.</p>}
         </Card>
       </div>
-      <h2>Best-performing content</h2>
-      {(data.top_content ?? []).map((c) => (
+      <Card>
+        <h3>Platform comparison</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+            <thead>
+              <tr className="muted" style={{ textAlign: "left" }}>
+                <th>Platform</th><th>Posts</th><th>Impressions</th><th>Avg engagement</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(
+                inRange.reduce((acc, r) => {
+                  const p = (acc[r.platform] ??= { posts: 0, imp: 0, er: 0 });
+                  p.posts++;
+                  p.imp += r.impressions || 0;
+                  p.er += r.engagement_rate || 0;
+                  return acc;
+                }, {} as Record<string, { posts: number; imp: number; er: number }>)
+              ).map(([plat, v]) => (
+                <tr key={plat} style={{ borderTop: "1px solid var(--border)" }}>
+                  <td><b>{plat}</b></td>
+                  <td>{v.posts}</td>
+                  <td>{v.imp}</td>
+                  <td>{(v.er / Math.max(1, v.posts)).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      <h2>Best-performing content</h2>      {(data.top_content ?? []).map((c) => (
         <Card key={c.id}><p style={{ margin: 0 }}><b>{c.title.slice(0, 80)}</b> — score {c.performance_score}</p></Card>
       ))}
       {data.posts === 0 && <Empty text="No performance data yet. Once you publish content and enter metrics, SignalCraft will learn what works best for you." />}

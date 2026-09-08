@@ -130,6 +130,7 @@ function CreateInner() {
                 <p><b>{opp.topic}</b> — {opp.score}/100</p>
                 <p className="muted">{opp.why_now}</p>
                 <p className="muted">Angle: {opp.angle}</p>
+                <p className="muted">Voice: {tone || prefs.data?.tone || "profile default"} · Best for {opp.platform}</p>
               </>
             )}
             <label className="field">Opportunity

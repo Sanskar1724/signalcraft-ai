@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { api, type Opportunity } from "../../../lib/api";
 import { OpportunityDrawer } from "../../../components/Drawers";
+import { ScoreRing } from "../../../components/charts";
 import { toast } from "../../../components/fx";
 import { Card, Empty, Loading, Pill, ScoreBar, Tabs, useApi } from "../../../components/ui";
 
@@ -49,11 +50,16 @@ export default function OpportunitiesPage() {
       {rows.length === 0 && <Empty text="No opportunities match — clear the filters." />}
       {rows.map((o) => (
         <Card key={o.id} lift>
-          <h3 style={{ cursor: "pointer" }} onClick={() => setSel(o)}>{o.topic}</h3>
-          <div className="row" style={{ alignItems: "center" }}>
-            <span className="muted">Opportunity</span>
-            <div style={{ flex: 1 }}><ScoreBar value={o.score} /></div>
-            <b>{o.score}</b>
+          <div className="row">
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <h3 style={{ cursor: "pointer" }} onClick={() => setSel(o)}>{o.topic}</h3>
+              <div className="row" style={{ alignItems: "center" }}>
+                <span className="muted">Opportunity</span>
+                <div style={{ flex: 1 }}><ScoreBar value={o.score} /></div>
+                <b>{o.score}</b>
+              </div>
+            </div>
+            <ScoreRing value={o.score} size={76} />
           </div>
           <div className="fact"><p className="lbl">Observed fact</p><p>{o.why_now}</p></div>
           <div className="interp"><p className="lbl">AI interpretation</p><p>{o.why_you}</p></div>

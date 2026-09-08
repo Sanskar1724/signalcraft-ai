@@ -33,15 +33,38 @@ export default function OverviewPage() {
   const hour = new Date().getHours();
   const daypart = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
   const first = (me.data?.user.name ?? "creator").split(" ")[0];
+  const created = lib.data.length;
+  const published = lib.data.filter((c) => c.status === "published").length;
+  const avgScore = created
+    ? (lib.data.reduce((s, c) => s + c.quality_score, 0) / created).toFixed(1)
+    : "—";
+  const streak = (() => {
+    const days = new Set(
+      lib.data.map((c) => (c.created_at || "").slice(0, 10)).filter(Boolean)
+    );
+    let n = 0;
+    const d = new Date();
+    if (!days.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 1);
+    while (days.has(d.toISOString().slice(0, 10))) {
+      n++;
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  })();
 
   return (
     <>
       <h1>Good {daypart}, {first}.</h1>
       <p className="sub">Here&apos;s what your content intelligence found today.</p>
       <div className="grid3">
-        <Stat hot value={String(top.length)} label="Top opportunities" />
-        <Stat value={String(a.data.posts)} label="Posts tracked" />
+        <Stat hot value={String(created)} label="Content created" />
+        <Stat value={String(published)} label="Published" />
+        <Stat value={String(avgScore)} label="Avg content score" />
+      </div>
+      <div className="grid3" style={{ marginTop: 12 }}>
         <Stat value={`${a.data.avg_engagement}%`} label="Avg engagement" />
+        <Stat value={String(o.data.length)} label="Opportunities live" />
+        <Stat value={`${streak} day${streak === 1 ? "" : "s"}`} label="Creation streak" />
       </div>
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn ghost" onClick={refresh}>Refresh research</button>

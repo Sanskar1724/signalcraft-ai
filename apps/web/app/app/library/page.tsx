@@ -57,7 +57,7 @@ export default function LibraryPage() {
     (c) =>
       (platform === "All" || c.platform === platform) &&
       (status === "All" || c.status === status) &&
-      (!query || (c.title + (c as ContentItem & { topic?: string }).topic).toLowerCase().includes(query.toLowerCase()))
+      (!query || (c.title + " " + c.hook + " " + ((c as ContentItem & { opportunity_topic?: string }).opportunity_topic ?? "")).toLowerCase().includes(query.toLowerCase()))
   );
 
   async function open(id: number) {
