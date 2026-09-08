@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import secrets
 import urllib.parse
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -13,10 +13,10 @@ from . import auth as _auth
 from .config import settings
 from .db import get_conn
 
-__all__ = ["is_configured", "redirect_uri", "start_login", "handle_callback"]
+__all__ = ["handle_callback", "is_configured", "redirect_uri", "start_login"]
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-TOKEN_URL = "https://oauth2.googleapis.com/token"
+TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 (public endpoint, not a secret)
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 STATE_TTL_S = 600
 
@@ -66,10 +66,10 @@ def _consume_state(state: str) -> None:
         raise ValueError("invalid or reused oauth state")
     try:
         created = datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S").replace(
-            tzinfo=timezone.utc)
-    except Exception:
-        raise ValueError("invalid oauth state timestamp")
-    if datetime.now(timezone.utc) - created > timedelta(seconds=STATE_TTL_S):
+            tzinfo=UTC)
+    except Exception as e:
+        raise ValueError("invalid oauth state timestamp") from e
+    if datetime.now(UTC) - created > timedelta(seconds=STATE_TTL_S):
         raise ValueError("expired oauth state")
 
 
@@ -95,7 +95,7 @@ def handle_callback(code: str, state: str) -> tuple[dict, str]:
     except ValueError:
         raise
     except Exception as e:
-        raise ValueError(f"google token exchange failed: {e}")
+        raise ValueError(f"google token exchange failed: {e}") from e
     if not info.get("email_verified"):
         raise ValueError("google email not verified")
     email = str(info.get("email", "")).strip().lower()

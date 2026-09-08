@@ -10,7 +10,7 @@ from .auth import get_user, set_onboarding_status
 from .profiles import get_profile, update_profile
 from .taxonomy import save_audience, save_topic
 
-__all__ = ["get_status", "apply_step", "complete"]
+__all__ = ["apply_step", "complete", "get_status"]
 
 REQUIRED_FOR_COMPLETE = ("name_set", "niche_set")
 
@@ -46,7 +46,7 @@ def apply_step(user_id: int = 1, **payload) -> dict:
             profile_fields[key] = payload[key]
     if "goals" in profile_fields and isinstance(profile_fields["goals"], list):
         profile_fields["goals"] = ", ".join(profile_fields["goals"])
-    if "name" in payload and payload["name"]:
+    if payload.get("name"):
         conn = get_conn()
         try:
             conn.execute("UPDATE users SET name=? WHERE id=?",

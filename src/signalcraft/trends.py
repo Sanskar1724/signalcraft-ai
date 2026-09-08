@@ -18,14 +18,14 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .config import settings
 from .db import get_conn, new_uuid
 from .profiles import get_profile
-from .research.normalize import BANNED_URL_TOKENS, looks_like_url_junk
+from .research.normalize import BANNED_URL_TOKENS
 
-__all__ = ["tokenize", "freshness_of", "detect_trends"]
+__all__ = ["detect_trends", "freshness_of", "tokenize"]
 
 STOP = {"the", "and", "for", "with", "from", "that", "this", "into", "using",
         "how", "are", "was", "were", "have", "has", "will", "over", "more"}
@@ -39,8 +39,8 @@ def tokenize(s: str) -> list[str]:
 
 def freshness_of(published_at: str) -> float:
     try:
-        dt = datetime.strptime(published_at[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-        age_days = max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 86400)
+        dt = datetime.strptime(published_at[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+        age_days = max(0.0, (datetime.now(UTC) - dt).total_seconds() / 86400)
     except Exception:
         return 0.5
     return max(0.0, 1.0 - age_days / 30.0)
@@ -124,7 +124,7 @@ def detect_trends(user_id: int = 1, top_n: int = 10) -> list[dict]:
         if dup_of is None:
             deduped.append(cand)
         else:
-            for eid, title in zip(cand["evidence"], cand["evidence_titles"]):
+            for eid, title in zip(cand["evidence"], cand["evidence_titles"], strict=True):
                 if eid not in dup_of["evidence"]:
                     dup_of["evidence"].append(eid)
                     dup_of["evidence_titles"].append(title)

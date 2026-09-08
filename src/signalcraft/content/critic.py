@@ -14,7 +14,7 @@ def critique(body: str, platform: str = "LinkedIn", topic: str = "",
     text = (body or "").strip()
     words = re.findall(r"[A-Za-z0-9']+", text)
     n = len(words)
-    lines = [l for l in text.splitlines() if l.strip()]
+    lines = [line for line in text.splitlines() if line.strip()]
     first = lines[0] if lines else ""
 
     scores: dict[str, float] = {}
@@ -63,7 +63,7 @@ def critique(body: str, platform: str = "LinkedIn", topic: str = "",
     # tone: concrete markers beat fluff
     scores["tone"] = 7.5
     # evidence: numbers, examples, sources
-    ev = bool(re.search(r"\d|example|e\.g\.|for instance|source|http", text, re.I))
+    ev = bool(re.search(r"\d|example|e\.g\.|for instance|source|http", text, re.IGNORECASE))
     scores["evidence"] = 8.0 if ev else 5.0
     if not ev:
         issues.append("add one concrete example or data point")
@@ -73,7 +73,7 @@ def critique(body: str, platform: str = "LinkedIn", topic: str = "",
     if risky:
         issues.append("verify any statistics against sources before publishing")
     # cta
-    cta = bool(re.search(r"\?|try|subscribe|comment|share|what.*you", text, re.I))
+    cta = bool(re.search(r"\?|try|subscribe|comment|share|what.*you", text, re.IGNORECASE))
     scores["cta"] = 8.0 if cta else 5.0
     if not cta:
         issues.append("end with a clear CTA or question")

@@ -9,8 +9,15 @@ from __future__ import annotations
 
 from .db import get_conn, new_uuid
 
-__all__ = ["VALID_KINDS", "remember", "recall", "get_memory_boost",
-           "semantic_recall", "remember_feedback", "learn_from_performance"]
+__all__ = [
+    "VALID_KINDS",
+    "get_memory_boost",
+    "learn_from_performance",
+    "recall",
+    "remember",
+    "remember_feedback",
+    "semantic_recall",
+]
 
 VALID_KINDS = {"successful_topic", "weak_topic", "successful_hook", "weak_hook",
                "preferred_format", "audience_pattern", "user_feedback",
@@ -80,7 +87,7 @@ def semantic_recall(user_id: int, query: str, limit: int = 5) -> list[dict]:
     scored = []
     for m in recall(user_id, limit=100):
         v = gateway.embed(f"{m['key']} {m['value']}")
-        sim = sum(a * b for a, b in zip(q, v))
+        sim = sum(a * b for a, b in zip(q, v, strict=True))
         scored.append((sim, m))
     scored.sort(key=lambda p: p[0], reverse=True)
     return [m for _, m in scored[:limit]]

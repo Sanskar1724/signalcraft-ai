@@ -11,8 +11,13 @@ import re
 import urllib.parse
 from html.parser import HTMLParser
 
-__all__ = ["strip_html", "clean_text", "normalize_doc", "BANNED_URL_TOKENS",
-           "looks_like_url_junk"]
+__all__ = [
+    "BANNED_URL_TOKENS",
+    "clean_text",
+    "looks_like_url_junk",
+    "normalize_doc",
+    "strip_html",
+]
 
 # Tokens that are URL/parser metadata, never semantic topics (§5).
 BANNED_URL_TOKENS = frozenset({

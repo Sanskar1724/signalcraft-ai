@@ -29,7 +29,7 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
     raise HTTPException(status_code=401, detail="login required")
 
 
-async def get_user_id(user: dict = Depends(get_current_user)) -> int:
+async def get_user_id(user: dict = Depends(get_current_user)) -> int:  # noqa: B008 (canonical FastAPI DI idiom)
     return int(user["id"])
 
 

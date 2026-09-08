@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import islice
 
 import requests
@@ -31,7 +31,7 @@ class RSSSource:
                 r = requests.get(feed, timeout=self.timeout,
                                  headers={"User-Agent": "SignalCraftAI/0.1"})
                 r.raise_for_status()
-                root = ET.fromstring(r.content)
+                root = ET.fromstring(r.content[:2_000_000])
                 for it in islice(root.iter("item"), limit):
                     title = (it.findtext("title") or "").strip()
                     link = (it.findtext("link") or "").strip()
@@ -52,4 +52,4 @@ class RSSSource:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")

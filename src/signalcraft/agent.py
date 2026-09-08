@@ -17,7 +17,7 @@ from .profiles import get_profile
 from .research import list_recent, search
 from .security import MAX_TOOL_CALLS, Budget, check_rate_limit, validate_request
 
-__all__ = ["classify_intent", "run", "list_opportunities_for_actions"]
+__all__ = ["classify_intent", "list_opportunities_for_actions", "run"]
 
 
 def list_opportunities_for_actions(intent: str, user_id: int = 1) -> list[dict]:

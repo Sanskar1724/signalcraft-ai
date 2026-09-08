@@ -3,8 +3,13 @@ from __future__ import annotations
 
 from .db import get_conn, new_uuid
 
-__all__ = ["schedule", "upcoming", "update_entry", "duplicate_entry",
-           "CALENDAR_STATUSES"]
+__all__ = [
+    "CALENDAR_STATUSES",
+    "duplicate_entry",
+    "schedule",
+    "upcoming",
+    "update_entry",
+]
 
 CALENDAR_STATUSES = {"draft", "scheduled", "published", "cancelled"}
 

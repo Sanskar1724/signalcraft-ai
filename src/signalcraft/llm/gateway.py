@@ -15,8 +15,12 @@ from typing import Any
 
 from ..config import settings
 from ..observability import log
-from .providers import (BaseProvider, MockProvider, OpenAICompatibleProvider,
-                        OpenRouterProvider)
+from .providers import (
+    BaseProvider,
+    MockProvider,
+    OpenAICompatibleProvider,
+    OpenRouterProvider,
+)
 
 # Task routing: simple tasks prefer cheap/fast, hard tasks prefer stronger.
 CHEAP_TASKS = {"classification", "extraction", "tagging", "summarization"}
@@ -74,15 +78,15 @@ class LLMGateway:
             start, end = raw.find("{"), raw.rfind("}")
             if start != -1 and end != -1:
                 return json.loads(raw[start:end + 1])
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("structured parse failed, returning raw: %s", e)
         return {"raw": raw}
 
     def embed(self, text: str, dim: int = 64) -> list[float]:
         """Local hash embedding (offline, deterministic). Real embeddings can plug in later."""
         vec = [0.0] * dim
         for tok in text.lower().split():
-            h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
+            h = int(hashlib.md5(tok.encode(), usedforsecurity=False).hexdigest(), 16)
             vec[h % dim] += 1.0
         norm = math.sqrt(sum(v * v for v in vec)) or 1.0
         return [v / norm for v in vec]

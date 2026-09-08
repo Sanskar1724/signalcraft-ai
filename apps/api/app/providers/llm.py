@@ -3,8 +3,11 @@ from __future__ import annotations
 
 from signalcraft.config import settings
 from signalcraft.llm import LLMGateway
-from signalcraft.llm.providers import (MockProvider, OpenAICompatibleProvider,
-                                        OpenRouterProvider)
+from signalcraft.llm.providers import (
+    MockProvider,
+    OpenAICompatibleProvider,
+    OpenRouterProvider,
+)
 
 __all__ = ["PROVIDERS", "get_gateway"]
 

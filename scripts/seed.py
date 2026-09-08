@@ -16,9 +16,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from signalcraft import analytics, calendar  # noqa: E402
 from signalcraft.auth import set_onboarding_status  # noqa: E402
 from signalcraft.content.generator import generate_content  # noqa: E402
+from signalcraft.db import get_conn, init_db  # noqa: E402
 from signalcraft.llm import LLMGateway  # noqa: E402
 from signalcraft.llm.providers import MockProvider  # noqa: E402
-from signalcraft.db import get_conn, init_db  # noqa: E402
 from signalcraft.memory import learn_from_performance  # noqa: E402
 from signalcraft.opportunities import build_opportunities  # noqa: E402
 from signalcraft.profiles import seed_default_profile  # noqa: E402
@@ -29,7 +29,7 @@ PLATFORMS = ["LinkedIn", "X", "Blog"]
 
 
 def _h(*parts: str) -> int:
-    return int(hashlib.md5("|".join(parts).encode()).hexdigest(), 16)
+    return int(hashlib.md5("|".join(parts).encode(), usedforsecurity=False).hexdigest(), 16)
 
 
 def main(fresh: bool = False) -> None:

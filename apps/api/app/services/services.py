@@ -22,8 +22,18 @@ from signalcraft.research import list_recent
 
 from ..repositories.content import get_content_detail
 
-__all__ = ["profile", "research", "trend", "opportunity", "content", "agent",
-           "identity", "onboarding", "preferences", "context"]
+__all__ = [
+    "agent",
+    "content",
+    "context",
+    "identity",
+    "onboarding",
+    "opportunity",
+    "preferences",
+    "profile",
+    "research",
+    "trend",
+]
 
 
 class identity:
@@ -120,7 +130,7 @@ class research:
     @staticmethod
     def documents(user_id: int = 1, query: str = "", limit: int = 30,
                   offset: int = 0) -> list[dict]:
-        from signalcraft.research import list_recent, search
+        from signalcraft.research import search
         if query:
             return search(user_id, query, limit, offset)
         return list_recent(user_id, limit, offset)
@@ -267,6 +277,7 @@ class content:
         if status not in {"draft", "ready", "published", "archived"}:
             raise ValueError(f"invalid status: {status}")
         from signalcraft.db import get_conn
+
         from ..repositories.content import get_content_detail
         get_content_detail(content_id, user_id)  # 404-style guard
         conn = get_conn()
@@ -290,6 +301,7 @@ class agent:
     def chat(message: str, user_id: int = 1) -> dict:
         from signalcraft.agent import list_opportunities_for_actions, run
         from signalcraft.contracts import AgentResult
+
         from ..api.deps import current_request_id
         out = run(message, user_id=user_id)
         out["request_id"] = current_request_id()

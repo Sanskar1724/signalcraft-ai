@@ -10,8 +10,13 @@ from statistics import mean
 
 from .db import get_conn, new_uuid
 
-__all__ = ["engagement_rate", "performance_score", "record_performance",
-           "summary", "insights"]
+__all__ = [
+    "engagement_rate",
+    "insights",
+    "performance_score",
+    "record_performance",
+    "summary",
+]
 
 
 def engagement_rate(impressions: int, likes: int, comments: int,

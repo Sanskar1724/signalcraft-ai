@@ -19,8 +19,9 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "google_client_id", "")
     monkeypatch.setattr(config.settings, "google_client_secret", "")
     db.init_db(tmp_path / "api.db")
-    from apps.api.app.main import app
     from fastapi.testclient import TestClient
+
+    from apps.api.app.main import app
     with TestClient(app) as c:
         yield c
 
@@ -33,7 +34,7 @@ def test_health(client):
 
 def test_cors_preflight(client):
     from signalcraft import config
-    origin = [o.strip() for o in config.settings.cors_origins.split(",") if o.strip()][0]
+    origin = next(o.strip() for o in config.settings.cors_origins.split(",") if o.strip())
     r = client.options(
         "/api/trends",
         headers={"Origin": origin, "Access-Control-Request-Method": "GET"},

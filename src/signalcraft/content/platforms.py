@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .rules import get_rules
 
+
 def format_linkedin(topic: str, angle: str, body_core: str, tone: str, cta: str = "") -> tuple[str, str, str]:
     rules = get_rules("LinkedIn")
     cta = cta or rules["default_cta"]

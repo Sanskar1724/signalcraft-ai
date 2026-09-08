@@ -1,0 +1,23 @@
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "RUF"]
+ignore = [
+  # Resilience boundaries by design: every broad handler logs and degrades
+  # gracefully instead of crashing user flows.
+  "BLE001",
+  # Readability over rigid width; long UI strings stay intact.
+  "E501",
+  # All dynamic SQL uses ?-bound values; identifiers come from fixed allowlists.
+  "S608",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "S105"]
+"apps/api/tests/**/*" = ["S101", "S105"]
+"scripts/**/*" = ["S105"]
+# sys.path bootstrap must precede imports; lazy imports avoid cycles.
+"apps/api/app/main.py" = ["E402"]
+# RSS parsing is exception-bounded with capped input; feeds are public data.
+"src/signalcraft/research/rss.py" = ["S314"]

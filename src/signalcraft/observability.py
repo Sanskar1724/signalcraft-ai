@@ -11,7 +11,7 @@ from typing import Any
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("signalcraft")
 
-__all__ = ["log", "Trace", "new_request_id"]
+__all__ = ["Trace", "log", "new_request_id"]
 
 
 def new_request_id() -> str:

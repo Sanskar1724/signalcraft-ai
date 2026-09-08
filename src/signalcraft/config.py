@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,8 +10,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv  # type: ignore
     load_dotenv()
-except Exception:
-    pass
+except Exception as e:
+    logging.getLogger("signalcraft").debug("dotenv not loaded: %s", e)
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB = ROOT / "data" / "signalcraft.db"
@@ -65,4 +66,4 @@ class Settings:
 
 settings = Settings()
 
-__all__ = ["Settings", "settings", "DEFAULT_TREND_WEIGHTS", "DEFAULT_OPP_WEIGHTS"]
+__all__ = ["DEFAULT_OPP_WEIGHTS", "DEFAULT_TREND_WEIGHTS", "Settings", "settings"]

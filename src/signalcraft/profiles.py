@@ -6,8 +6,13 @@ from dataclasses import dataclass, field
 
 from .db import get_conn, new_uuid
 
-__all__ = ["Profile", "DEFAULT_PROFILE", "get_profile", "update_profile",
-           "seed_default_profile"]
+__all__ = [
+    "DEFAULT_PROFILE",
+    "Profile",
+    "get_profile",
+    "seed_default_profile",
+    "update_profile",
+]
 
 DEFAULT_PROFILE = {
     "niche": "AI + Data Engineering",

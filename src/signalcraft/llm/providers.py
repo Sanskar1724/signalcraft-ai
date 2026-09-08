@@ -6,7 +6,8 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import ClassVar
 
 import requests
 
@@ -45,7 +46,7 @@ class MockProvider(BaseProvider):
     def generate(self, prompt: str, task: str = "generation", max_tokens: int = 800) -> LLMResult:
         t0 = time.time()
         # Deterministic per input so tests and demos are reproducible.
-        digest = hashlib.md5(f"{task}:{prompt}".encode()).hexdigest()
+        digest = hashlib.md5(f"{task}:{prompt}".encode(), usedforsecurity=False).hexdigest()
         seed = int(digest[:8], 16)
         if task == "strategy":
             angles = [
@@ -67,13 +68,19 @@ class MockProvider(BaseProvider):
             text = json.dumps({"label": "relevant", "confidence": 0.6, "mock_id": digest})
         else:
             bodies = [
-                "Start with the most surprising specific detail. Make one claim, "
-                "support it with a concrete example, and end with a single takeaway "
-                "the reader can use this week.",
-                "Open on a real scenario the reader recognizes. Explain what changed, "
-                "why it matters now, and give one practical next step.",
-                "Lead with a clear opinion. Back it with observed evidence, note one "
-                "limitation honestly, and close with what to try next.",
+                (
+                    "Start with the most surprising specific detail. Make one claim, "
+                    "support it with a concrete example, and end with a single takeaway "
+                    "the reader can use this week."
+                ),
+                (
+                    "Open on a real scenario the reader recognizes. Explain what changed, "
+                    "why it matters now, and give one practical next step."
+                ),
+                (
+                    "Lead with a clear opinion. Back it with observed evidence, note one "
+                    "limitation honestly, and close with what to try next."
+                ),
             ]
             text = bodies[seed % len(bodies)]
         latency = int((time.time() - t0) * 1000) + 1
@@ -121,7 +128,7 @@ class OpenRouterProvider(BaseProvider):
     name = "openrouter"
 
     # Approximate $/1K tokens (prompt, completion); refined from API usage when present.
-    PRICE_PER_1K = {
+    PRICE_PER_1K: ClassVar[dict[str, tuple[float, float]]] = {
         "openai/gpt-4o-mini": (0.00015, 0.0006),
         "openai/gpt-4o": (0.0025, 0.01),
         "anthropic/claude-3-5-sonnet": (0.003, 0.015),
@@ -155,8 +162,8 @@ class OpenRouterProvider(BaseProvider):
         data = resp.json()
         try:
             msg = data["choices"][0]["message"]
-        except (KeyError, IndexError, TypeError):
-            raise ValueError(f"unexpected OpenRouter response: {str(data)[:200]}")
+        except (KeyError, IndexError, TypeError) as e:
+            raise ValueError(f"unexpected OpenRouter response: {str(data)[:200]}") from e
         text = msg.get("content") or ""
         if isinstance(text, list):  # content-block responses
             text = "".join(b.get("text", "") for b in text if isinstance(b, dict))

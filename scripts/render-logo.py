@@ -1,7 +1,6 @@
 """Render brand SVGs to PNGs (dev utility). Requires: python -m pip install resvg-py."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 from resvg_py import svg_to_bytes

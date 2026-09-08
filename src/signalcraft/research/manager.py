@@ -8,8 +8,14 @@ from ..db import get_conn, new_uuid
 from ..observability import log
 from ..profiles import get_profile
 from .base import BaseSource, ResearchItem
-from .extra_sources import (GitHubSource, NewsSource, RedditSource,
-                            SearchTrendsSource, WebSearchSource, YouTubeSource)
+from .extra_sources import (
+    GitHubSource,
+    NewsSource,
+    RedditSource,
+    SearchTrendsSource,
+    WebSearchSource,
+    YouTubeSource,
+)
 from .normalize import normalize_doc
 from .rss import RSSSource
 from .samples import SampleSource

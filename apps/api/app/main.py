@@ -8,16 +8,15 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from fastapi import FastAPI  # noqa: E402
-from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from signalcraft.config import settings  # noqa: E402
+from signalcraft.config import settings
+from signalcraft.db import init_db
 
-from .api.router import public, router  # noqa: E402
-from .core.errors import register_handlers  # noqa: E402
-from .core.middleware import RequestIdMiddleware  # noqa: E402
-
-from signalcraft.db import init_db  # noqa: E402
+from .api.router import public, router
+from .core.errors import register_handlers
+from .core.middleware import RequestIdMiddleware
 
 init_db()  # ensure schema + migrations exist before serving
 

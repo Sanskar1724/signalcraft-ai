@@ -8,17 +8,49 @@ from fastapi import APIRouter, Depends, Header
 from ..analytics.service import insights, summary
 from ..api.deps import current_request_id, get_user_id, require_key
 from ..core.config import API_PREFIX
-from ..models.models import (ChatOut, ContentDetail, ContentItem, Opportunity,
-                             Performance, ProfileOut, TrendSignal)
+from ..models.models import (
+    ChatOut,
+    ContentDetail,
+    ContentItem,
+    Opportunity,
+    Performance,
+    ProfileOut,
+    TrendSignal,
+)
 from ..repositories.content import get_content_detail
-from ..schemas.schemas import (CalendarUpdate, ChatIn, CritiqueIn, GenerateIn,
-                               ImproveIn, LoginIn, MemoryIn, OnboardingStep,
-                               PasswordIn, PerformanceIn, PreferencesUpdate,
-                               ProfileUpdate, ResearchRun, RestoreIn, ReviseIn,
-                               SaveIn, ScheduleIn, SignupIn, StatusIn)
-from ..services.services import (agent, content, context, identity, onboarding,
-                                 opportunity, preferences, profile, research,
-                                 trend)
+from ..schemas.schemas import (
+    CalendarUpdate,
+    ChatIn,
+    CritiqueIn,
+    GenerateIn,
+    ImproveIn,
+    LoginIn,
+    MemoryIn,
+    OnboardingStep,
+    PasswordIn,
+    PerformanceIn,
+    PreferencesUpdate,
+    ProfileUpdate,
+    ResearchRun,
+    RestoreIn,
+    ReviseIn,
+    SaveIn,
+    ScheduleIn,
+    SignupIn,
+    StatusIn,
+)
+from ..services.services import (
+    agent,
+    content,
+    context,
+    identity,
+    onboarding,
+    opportunity,
+    preferences,
+    profile,
+    research,
+    trend,
+)
 
 router = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_key)])
 public = APIRouter(prefix=API_PREFIX)
@@ -45,6 +77,7 @@ async def google_status() -> dict:
 @public.get("/auth/google/start")
 async def google_start():
     from fastapi.responses import RedirectResponse
+
     from signalcraft import oauth as _oauth
     if not _oauth.is_configured():
         from fastapi import HTTPException
@@ -59,13 +92,14 @@ async def google_start():
 async def google_callback(code: str | None = None, state: str | None = None,
                           error: str | None = None):
     from fastapi.responses import RedirectResponse
+
     from signalcraft import oauth as _oauth
     from signalcraft.config import settings as _s
     front = _s.frontend_url.rstrip("/")
     if error:
         return RedirectResponse(f"{front}/login?error=google_{error}", status_code=302)
     try:
-        user, token = _oauth.handle_callback(code or "", state or "")
+        _, token = _oauth.handle_callback(code or "", state or "")
     except ValueError as e:
         return RedirectResponse(
             f"{front}/login?error={urllib.parse.quote(str(e)[:80])}", status_code=302)

@@ -219,6 +219,7 @@ def validate(body: str, platform: str = "LinkedIn", topic: str = "",
                grounded: bool = True) -> dict:
     """Deterministic quality gate (§12): leakage, shape, platform fit, grounding."""
     import re as _re
+
     from .rules import get_rules
     from .sanitize import leak_found
     errors: list[str] = []
@@ -228,8 +229,7 @@ def validate(body: str, platform: str = "LinkedIn", topic: str = "",
         errors.append("body too short (<40 chars)")
     if len(text) > MAX_BODY:
         errors.append(f"body exceeds {MAX_BODY} chars")
-    from .rules import PLATFORM_RULES, get_rules
-    from .sanitize import leak_found
+    from .rules import PLATFORM_RULES
     if platform not in PLATFORM_RULES:
         errors.append(f"unknown platform: {platform}")
         return {"ok": False, "errors": errors, "warnings": warnings}
@@ -292,6 +292,7 @@ def save_draft(user_id: int, platform: str, title: str, body: str,
                brief: dict | None = None, format: str = "") -> dict:
     """Explicit Save (§13): validate + dedupe + persist a preview as v1 draft."""
     import json as _json
+
     from .sanitize import scrub as _scrub
     body = _scrub(body)
     validation = validate(body, platform=platform, grounded=False)

@@ -10,10 +10,20 @@ import secrets
 
 from .db import get_conn, new_uuid
 
-__all__ = ["hash_password", "verify_password", "create_user", "authenticate",
-           "create_session", "get_user_by_token", "destroy_session",
-           "get_user", "set_onboarding_status", "change_password",
-           "create_oauth_user", "ONBOARDING_STATES"]
+__all__ = [
+    "ONBOARDING_STATES",
+    "authenticate",
+    "change_password",
+    "create_oauth_user",
+    "create_session",
+    "create_user",
+    "destroy_session",
+    "get_user",
+    "get_user_by_token",
+    "hash_password",
+    "set_onboarding_status",
+    "verify_password",
+]
 
 ONBOARDING_STATES = ("NOT_STARTED", "IN_PROGRESS", "COMPLETED")
 _ITERS = 200_000

@@ -3,8 +3,13 @@ from __future__ import annotations
 
 from .db import get_conn, new_uuid
 
-__all__ = ["list_audiences", "save_audience", "list_topics", "save_topic",
-           "sync_profile_taxonomy"]
+__all__ = [
+    "list_audiences",
+    "list_topics",
+    "save_audience",
+    "save_topic",
+    "sync_profile_taxonomy",
+]
 
 
 def list_audiences(user_id: int = 1) -> list[dict]:
